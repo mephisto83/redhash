@@ -71,6 +71,13 @@ export default class HashEvent {
     static hasReachedConsensus(evnt, size) {
         return HashMeta.consensus(evnt.meta, size);
     }
+
+    static getUnnotifiedContributors(evnt, contributors) {
+        var zeros = HashMeta.getDiagonal(evnt.meta, contributors.length);
+        return zeros.map((t, i) => {
+            return t ? contributors[i] : null;
+        }).filter(x => x);
+    }
 }
 
 export const ADD_CONTRIBUTOR = 'ADD_CONTRIBUTOR';

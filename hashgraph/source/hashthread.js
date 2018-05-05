@@ -27,8 +27,8 @@ export default class HashThread {
     }
 
     //Creates a new instance of a thread.
-    static createThread(self) {
-        return new HashThread([self], self);
+    static createThread(self, contributors) {
+        return new HashThread(contributors || [self], self);
     }
 
     //Listene to events
@@ -53,6 +53,13 @@ export default class HashThread {
         return me.eventList.filter(t => {
             return HashEvent.hasReachedConsensus(t, me.contributors.length)
         });
+    }
+    getListEvent(index) {
+        var me = this;
+        return me.eventList[index];
+    }
+    getContributorsWhoHaventSeenTheMessage(evnt) {
+        return HashEvent.getUnnotifiedContributors(evnt, this.contributors);
     }
     // A new event created by the local client.
     sendEvent(hashEvent) {

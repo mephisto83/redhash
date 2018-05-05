@@ -191,7 +191,10 @@ describe('HashThread', function () {
       assert.ok(event);
       assert.ok(event.meta.length === 1, 'there should be only a single number here');
       assert.ok(event.meta[0] === 1, 'the sender should automatically say they have received the message');
-
+      return hashthread;
+    }
+    function setupTwoContributors() {
+      var hashthread = HashThread.createThread(self, [self, person]);
       return hashthread;
     }
     it('can reply to an add contributor request', () => {
@@ -199,6 +202,24 @@ describe('HashThread', function () {
       var evnts = hashthread.getConsensusEvents();
       assert.ok(evnts);
       assert.ok(evnts.length === 2, `events should have been 2 but were ${evnts.length}`);
+    });
+
+    it('know when not everyone has seen the message', () => {
+      var hashthread = setupTwoContributors();
+      var request = new HashEvent('message', 'sometype');
+      hashthread.sendEvent(request);
+      var evnts = hashthread.getConsensusEvents();
+      assert.ok(evnts);
+      assert.ok(evnts.length === 0, `events should have been 2 but were ${evnts.length}`);
+    });
+
+    it('know when not everyone has seen the message', () => {
+      var hashthread = setupTwoContributors();
+      var request = new HashEvent('message', 'sometype');
+      hashthread.sendEvent(request);
+      var contribs = hashthread.getContributorsWhoHaventSeenTheMessage(hashthread.getListEvent(0));
+      assert.ok(contribs);
+      assert.ok(contribs.length === 1, `events should have been 1 but were ${contribs.length}`);
     });
   })
 });
