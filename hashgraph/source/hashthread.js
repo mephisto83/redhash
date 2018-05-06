@@ -61,6 +61,9 @@ export default class HashThread {
     getContributorsWhoHaventSeenTheMessage(evnt) {
         return HashEvent.getUnnotifiedContributors(evnt, this.contributors);
     }
+    getContributorsSeenBy(evnt){
+        return HashEvent.getNotifiedContributors(evnt, this.contributors);
+    }
     // A new event created by the local client.
     sendEvent(hashEvent) {
         if (hashEvent instanceof HashEvent) {

@@ -75,6 +75,12 @@ export default class HashEvent {
     static getUnnotifiedContributors(evnt, contributors) {
         var zeros = HashMeta.getDiagonal(evnt.meta, contributors.length);
         return zeros.map((t, i) => {
+            return t ? null : contributors[i];
+        }).filter(x => x);
+    }
+    static getNotifiedContributors(evnt, contributors) {
+        var zeros = HashMeta.getDiagonal(evnt.meta, contributors.length);
+        return zeros.map((t, i) => {
             return t ? contributors[i] : null;
         }).filter(x => x);
     }

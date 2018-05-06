@@ -30,7 +30,59 @@ export default class HashMeta {
             return t;
         })];
     }
+    static setValue(array, x, y, val, size) {
+        var index = (x + y * size);
+        var arrayIndex = Math.floor(index / intsize);
+        var _bits_ = array[arrayIndex];
+        var bit_index = (index - (arrayIndex * intsize));
+        var bit_number = HashMeta.getBitIndexString(bit_index);
 
+        return [...array.map((t, i) => {
+            if (i === arrayIndex) {
+                if (val) {
+                    return _bits_ & bit_number ? _bits_ : (_bits_ | bit_number);
+                }
+                else {
+                    return _bits_ & bit_number ? _bits_ ^ bit_number : _bits_;
+                }
+            }
+            return t;
+        })];
+    }
+    static row(array, row, size) {
+        return [].interpolate(0, size, (i) => {
+            var index = (i + row * size);
+            var arrayIndex = Math.floor(index / intsize);
+            var _bits_ = array[arrayIndex];
+            var bit_index = (index - (arrayIndex * intsize));
+            var num = HashMeta.getBitIndexString(index);
+            return _bits_ & num ? 1 : 0;
+        });
+    }
+    static rowOr(array, r1, r2, size) {
+        var row1 = HashMeta.row(array, r1, size);
+        var row2 = HashMeta.row(array, r2, size);
+        console.log('row 1 ')
+        console.log(row1)
+        console.log('row 2 ')
+        console.log(row2)
+        var res = row1.map((val, i) => {
+            return val | row2[i];
+        });
+        console.log('res ');
+        console.log(res);
+        res.map((t, i) => {
+            console.log('set value ' + t)
+            array = HashMeta.setValue(array, i, r1, t, size);
+        });
+
+        return array;
+    }
+    static or(array1, array2) {
+        return [].interpolate(0, array1.length, (i) => {
+            return array1[i] | array2[i];
+        })
+    }
     static getDiagonal(array, size) {
         return [].interpolate(0, size, function (i) {
             var index = (i + i * size);
@@ -57,6 +109,9 @@ export default class HashMeta {
     }
 
     static getBitIndexString(bit_index) {
+        if (bitIndexCache[bit_index] !== undefined) {
+            return bitIndexCache[bit_index];
+        }
         var numstring = [].interpolate(0, 32, (t, i) => {
 
             if (intsize - i - 1 === bit_index) {
@@ -64,6 +119,8 @@ export default class HashMeta {
             }
             return 0;
         }).join('')
-        return parseInt(numstring, 2);
+        bitIndexCache[bit_index] = parseInt(numstring, 2);
+        return bitIndexCache[bit_index]
     }
 }
+const bitIndexCache = {}

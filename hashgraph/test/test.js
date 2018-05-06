@@ -220,6 +220,17 @@ describe('HashThread', function () {
       var contribs = hashthread.getContributorsWhoHaventSeenTheMessage(hashthread.getListEvent(0));
       assert.ok(contribs);
       assert.ok(contribs.length === 1, `events should have been 1 but were ${contribs.length}`);
+      assert.ok(contribs[0] === person, ' should have been the person who hasnt see the message');
+    });
+
+    it('should get contributors who have seen the message', () => {
+      var hashthread = setupTwoContributors();
+      var request = new HashEvent('message', 'sometype');
+      hashthread.sendEvent(request);
+      var contribs = hashthread.getContributorsSeenBy(hashthread.getListEvent(0));
+      assert.ok(contribs);
+      assert.ok(contribs.length === 1, `events should have been 1 but were ${contribs.length}`);
+      assert.ok(contribs[0] === self, ' should have been the self who has see the message');
     });
   })
 });
@@ -256,6 +267,60 @@ describe('HashMeta', function () {
       assert.ok(updated);
       assert.ok(updated[0].toString(2) === '1');
     });
+    it('should get a row from a hash', () => {
+
+      var res = HashMeta.create(2);
+      res = HashMeta.set(res, 0, 1, 1, 2);
+      console.log(res)
+      res = HashMeta.set(res, 1, 1, 1, 2);
+      console.log(res)
+      var row = HashMeta.row(res, 1, 2);
+      console.log(row);
+      assert.ok(row.length === 2, `the row should be 2 long instead of ${row}`);
+      assert.ok(row[0] === 1);
+      assert.ok(row[1] === 1);
+    })
+    it('should or a row', () => {
+      var res = HashMeta.create(2);
+      res = HashMeta.set(res, 1, 1, 1, 2);
+      /*
+         0 0
+         0 1
+        ----- [or]
+         0 1
+         0 1
+
+         = 1010 => 10
+
+         001110
+         000100 [or]
+         001110
+
+         101110
+         000100 [xor]
+         101010
+      */
+     console.log(`${res[0].toString(2)}`)
+      var result = HashMeta.rowOr(res, 0, 1, 2);
+      console.log(`${result[0].toString(2)}`)
+      assert.ok(result[0] === 10, `' it should be 10 and not ${result[0]}`);
+    });
+
+    it('should merge a meta message', () => {
+      var res = HashMeta.create(2);
+      assert.ok(res[0] === 0, 'should be equal to 1');
+      //Person's meta
+      var pMeta = HashMeta.set(res, 0, 0, 1, 2);
+      assert.ok(pMeta[0] === 1, 'should be equal to 1');
+
+      //Self's meta 
+      var sMeta = HashMeta.set(res, 1, 1, 1, 2);
+      assert.ok(sMeta[0] === 8, 'should be equal to 8');
+
+      var psMeta = HashMeta.or(pMeta, sMeta);
+      assert.ok(psMeta[0] === 9, 'should be equal to 9');
+
+    })
 
     it('should set the bit correctly', () => {
       var res = HashMeta.create(2);
