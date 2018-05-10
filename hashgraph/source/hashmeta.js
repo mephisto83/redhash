@@ -17,18 +17,26 @@ export default class HashMeta {
         Set the contributors to seen;
     */
     static set(array, x, y, val, size) {
-        var index = (x + y * size);
-        var arrayIndex = Math.floor(index / intsize);
-        var _bits_ = array[arrayIndex];
-        var bit_index = (index - (arrayIndex * intsize));
-        var bit_number = HashMeta.getBitIndexString(bit_index);
+        if (array) {
+            var index = (x + y * size);
+            var arrayIndex = Math.floor(index / intsize);
+            var _bits_ = array[arrayIndex];
+            var bit_index = (index - (arrayIndex * intsize));
 
-        return [...array.map((t, i) => {
-            if (i === arrayIndex) {
-                return _bits_ | bit_number;
-            }
-            return t;
-        })];
+            var bit_number = HashMeta.getBitIndexString(bit_index);
+
+            return [...array.map((t, i) => {
+                if (i === arrayIndex) {
+                    if (x === y && x === 0 && i === 0) {
+                        console.log(_bits_);
+                        console.log(bit_number);
+                    }
+                    return _bits_ | bit_number;
+                }
+                return t;
+            })];
+        }
+        return null;
     }
     static setValue(array, x, y, val, size) {
         var index = (x + y * size);
@@ -49,6 +57,7 @@ export default class HashMeta {
             return t;
         })];
     }
+
     static row(array, row, size) {
         return [].interpolate(0, size, (i) => {
             var index = (i + row * size);
@@ -59,24 +68,42 @@ export default class HashMeta {
             return _bits_ & num ? 1 : 0;
         });
     }
+    static rows(array, row, size) {
+        return [].interpolate(0, size, (i) => {
+            return HashMeta.row(array, i, size);
+        })
+    }
+    static column(array, col, size) {
+        return [].interpolate(0, size, (i) => {
+            var index = (col + i * size);
+            var arrayIndex = Math.floor(index / intsize);
+            var _bits_ = array[arrayIndex];
+            var bit_index = (index - (arrayIndex * intsize));
+            var num = HashMeta.getBitIndexString(index);
+            return _bits_ & num ? 1 : 0;
+        });
+    }
     static rowOr(array, r1, r2, size) {
-        var row1 = HashMeta.row(array, r1, size);
-        var row2 = HashMeta.row(array, r2, size);
-        console.log('row 1 ')
-        console.log(row1)
-        console.log('row 2 ')
-        console.log(row2)
-        var res = row1.map((val, i) => {
-            return val | row2[i];
-        });
-        console.log('res ');
-        console.log(res);
-        res.map((t, i) => {
-            console.log('set value ' + t)
-            array = HashMeta.setValue(array, i, r1, t, size);
-        });
+        if (array) {
+            var row1 = HashMeta.row(array, r1, size);
+            var row2 = HashMeta.row(array, r2, size);
+            mconsole.log('row 1 ')
+            mconsole.log(row1)
+            mconsole.log('row 2 ')
+            mconsole.log(row2)
+            var res = row1.map((val, i) => {
+                return val | row2[i];
+            });
+            mconsole.log('res ');
+            mconsole.log(res);
+            res.map((t, i) => {
+                mconsole.log('set value ' + t)
+                array = HashMeta.setValue(array, i, r1, t, size);
+            });
 
-        return array;
+            return array;
+        }
+        return null;
     }
     static or(array1, array2) {
         return [].interpolate(0, array1.length, (i) => {
@@ -98,8 +125,9 @@ export default class HashMeta {
         var remainder = meta.length * intsize - size * size;
         var mask = [].interpolate(0, intsize, () => 1).join('');
         var rmask = [].interpolate(0, intsize - remainder, () => 1).join('');
-        var maskint = parseInt(mask, 10);
-        var rmaskint = parseInt(rmask, 10);
+        var maskint = parseInt(mask, 2);
+        var rmaskint = parseInt(rmask, 2);
+
         return meta.all((t, i) => {
             if (i === meta.length - 1) {
                 return (t ^ rmaskint) === 0;
@@ -107,7 +135,25 @@ export default class HashMeta {
             return (maskint ^ t) === 0;
         });
     }
-
+    static print(meta, size) {
+        var res = [];
+        if (!meta || !meta.map || !size) {
+            return;
+        }
+        meta.map(m => {
+            res = [...res, ...m.toString(2).split('')];
+        });
+        res = res.reverse();
+        console.log('------------------------')
+        for (var j = 0; j < size; j++) {
+            var t = '';
+            for (var i = 0; i < size; i++) {
+                t = `${t}${res[i + j * size]}`;
+            }
+            console.log(t);
+        }
+        console.log('------------------------')
+    }
     static getBitIndexString(bit_index) {
         if (bitIndexCache[bit_index] !== undefined) {
             return bitIndexCache[bit_index];
@@ -124,3 +170,11 @@ export default class HashMeta {
     }
 }
 const bitIndexCache = {}
+
+const debug = false;
+const mconsole = {
+    log: (m) => {
+        if (debug)
+            console.log(m);
+    }
+}

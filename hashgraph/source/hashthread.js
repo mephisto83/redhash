@@ -1,5 +1,6 @@
 import * as Util from './util';
 import HashEvent from './hashevent';
+import HashMeta from './hashmeta';
 import * as HE from './hashevent';
 import HashSysEvent from './events/hashsysevent';
 //Hash thread is a single hash graph structure, whose contributors are 
@@ -9,14 +10,41 @@ export default class HashThread {
     constructor(contribs, self) {
         //A list of contributors
         this.contributors = (contribs || []).sort();
+        console.log(this.contributors);
         this.self = self;
         //List of events that have occurred, only contributors
         //may add to this list.
         this.eventList = [];
         this.listeners = [];
-
+        this.init();
+    }
+    init() {
+        this.listen(UPDATEEVENT, this.handleUpdateEvent.bind(this));
+        this.listen(RECEIVEEVENT, this.handleReceivedEvent.bind(this));
+        this.listen(EVENTUPDATED, this.handleUpdatedEvent.bind(this));
     }
 
+    handleUpdateEvent(evt) {
+        var { updated, original } = evt;
+
+    }
+    handleReceivedEvent(args) {
+        if (args) {
+            var { event, from } = args;
+            if (event) {
+
+                HashEvent.updateMeta(event, this.self, this.contributors, from);
+                this.raiseEvent(EVENTUPDATED, args);
+            }
+        }
+    }
+    handleUpdatedEvent(evt) {
+        if (evt) {
+            var { event } = evt;
+            var contributors = HashEvent.getContributorsNeedingUpdates(event, this.self, this.contributors);
+
+        }
+    }
     //Copy
     static copy(thread) {
         var duplicate = new HashThread([...(thread.contributors || [])], thread.self);
@@ -48,10 +76,16 @@ export default class HashThread {
     contributorRemove(contributor) {
         this.contributors = [...this.contributors.filter(t => t !== contributor)].sort();
     }
-    getConsensusEvents() {
+    getCompletedEvents() {
         var me = this;
         return me.eventList.filter(t => {
-            return HashEvent.hasReachedConsensus(t, me.contributors.length)
+            return HashEvent.hasReachedCompleted(t, me.contributors.length)
+        });
+    }
+    getConsensusEvents(){
+        var me = this;
+        return me.eventList.filter(t => {
+            return HashEvent.hasReachedConsensus(t, me.contributors)
         });
     }
     getListEvent(index) {
@@ -61,7 +95,7 @@ export default class HashThread {
     getContributorsWhoHaventSeenTheMessage(evnt) {
         return HashEvent.getUnnotifiedContributors(evnt, this.contributors);
     }
-    getContributorsSeenBy(evnt){
+    getContributorsSeenBy(evnt) {
         return HashEvent.getNotifiedContributors(evnt, this.contributors);
     }
     // A new event created by the local client.
@@ -70,10 +104,16 @@ export default class HashThread {
             var newevent = hashEvent
                 .stamp(this.self)
                 .setupMeta(this.contributors.length)
-                .setMetaSelfReceived(this.self, this.contributors);
+                .setMetaContributorReceived(this.self, this.contributors);
 
             this.eventList.push(newevent);
-            this.raiseEvent(HashThread.SENDEVENT, newevent);
+            this.raiseEvent(SENDEVENT, newevent);
+        }
+    }
+    sentEventSuccessfully(eventId, to) {
+        var evt = this.eventList.find(t => t.id === eventId);
+        if (evt instanceof HashEvent) {
+            evt.setMetaEvidence(to, this.self, this.contributors);
         }
     }
 
@@ -85,21 +125,41 @@ export default class HashThread {
     }
 
     // An event received from the outside world.
-    receiveEvent(hashEvent) {
-        var _hashEvent = HashEvent.create(hashEvent);
-        if (_hashEvent) {
-            if (!this.eventList.find(t => t.id === hashEvent.id)) {
+    receiveEvent(_hashEvent, receivedFrom) {
+        var hashEvent = HashEvent.create(_hashEvent);
+        if (!receivedFrom) {
+            throw 'required to have receivedFrom parameter'
+        }
+        if (hashEvent) {
+            var evnt = this.eventList.find(t => t.id === hashEvent.id);
+            if (!evnt) {
                 var newevent = hashEvent.stamp(this.self);
                 this.eventList.push(newevent);
-                switch (hashEvent.type) {
+                switch (newevent.type) {
                     case HE.ADD_CONTRIBUTOR:
-                        this.raiseEvent(HashThread.SYSEVENT, newevent);
+                        this.raiseEvent(SYSEVENT, {
+                            event: newevent,
+                            from: receivedFrom
+                        });
                         break;
                     default:
-                        this.raiseEvent(HashThread.RECEIVEEVENT, newevent);
+                        this.raiseEvent(RECEIVEEVENT, {
+                            event: newevent,
+                            from: receivedFrom
+                        });
                         break;
                 }
-
+            }
+            else {
+                switch (hashEvent.type) {
+                    default:
+                        this.raiseEvent(UPDATEEVENT, {
+                            update: hashEvent,
+                            original: evnt,
+                            from: receivedFrom
+                        });
+                        break;
+                }
             }
         }
     }
@@ -140,6 +200,8 @@ export default class HashThread {
     }
 }
 
-HashThread.SENDEVENT = 'SENDEVENT';
-HashThread.SYSEVENT = 'SYSEVENT';
-HashThread.RECEIVEEVENT = 'RECEIVEEVENT';
+export const SENDEVENT = 'SENDEVENT';
+export const SYSEVENT = 'SYSEVENT';
+export const RECEIVEEVENT = 'RECEIVEEVENT';
+export const UPDATEEVENT = 'UPDATEEVENT';
+export const EVENTUPDATED = 'EVENTUPDATED';

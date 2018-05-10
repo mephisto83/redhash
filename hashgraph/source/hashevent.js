@@ -31,6 +31,7 @@ export default class HashEvent {
         var duplicate = new HashEvent();
         duplicate.history = Object.assign(duplicate.history, hashEvent.history);
         duplicate.id = hashEvent.id;
+        duplicate._type = hashEvent._type;
         duplicate.message = hashEvent.message;
         duplicate.meta = HashMeta.copy(hashEvent.meta);
 
@@ -39,7 +40,9 @@ export default class HashEvent {
     static create(_obj) {
         var hashEvent = new HashEvent(_obj.message, _obj.type);
         hashEvent.applyHistory(_obj.history);
-        this.id = _obj.id;
+        hashEvent._type = _obj._type;
+        hashEvent.meta = _obj.meta;
+        hashEvent.id = _obj.id;
         return hashEvent;
     }
     applyHistory(hist) {
@@ -58,18 +61,72 @@ export default class HashEvent {
         this.meta = HashMeta.create(numberOfContributors);
         return this;
     }
-    setMetaSelfReceived(self, contributors) {
-        var index = contributors.indexOf(self);
+    setMetaContributorReceived(contributor, contributors) {
+        var index = contributors.indexOf(contributor);
         if (index === -1) {
             throw 'invalid contributor index';
         }
-
         this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
-
+        if (index === 0) {
+            HashMeta.print(this.meta);
+        }
         return this;
     }
-    static hasReachedConsensus(evnt, size) {
+    setMetaEvidence(contributor, self, contributors) {
+        var index = contributors.indexOf(contributor);
+        var sindex = contributors.indexOf(self);
+        if (index === -1) {
+            throw 'invalid contributor index';
+        }
+        if (sindex === -1) {
+            throw 'invalid contributor sindex';
+        }
+
+        this.meta = HashMeta.set(this.meta, index, sindex, 1, contributors.length);
+        this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
+        this.meta = HashMeta.set(this.meta, sindex, index, 1, contributors.length);
+
+        HashEvent.updateMeta(this, contributor, contributors, self);
+        HashEvent.updateMeta(this, self, contributors, contributor);
+        return this;
+    }
+
+    static updateMeta(evnt, self, contributors, from) {
+        if (evnt instanceof HashEvent) {
+            var index = contributors.indexOf(self);
+            console.log(`self ${self}: ${index}`);
+
+            evnt.setMetaContributorReceived(self, contributors);
+            contributors.map((c, i) => {
+                if (i !== index)
+                    evnt.meta = HashMeta.rowOr(evnt.meta, index, i, contributors.length)
+            });
+        }
+    }
+
+    static hasReachedCompleted(evnt, size) {
         return HashMeta.consensus(evnt.meta, size);
+    }
+    static hasReachedConsensus(evnt, contributors) {
+        var rows = HashMeta.rows(evnt.meta, contributors.length);
+
+        return rows.all((t, i) => {
+            if (t[i]) {
+                return true;
+            }
+            return false;
+        })
+    }
+    static getContributorsNeedingUpdates(evnt, self, contributors) {
+        if (evnt && evnt.meta) {
+            var index = contributors.indexOf(self);
+            var columnInfo = HashMeta.column(evnt.meta, index, contributors.length);
+
+            return contributors.map((c, i) => {
+                return columnInfo[i] ? c : null;
+            }).filter(t => t);
+        }
+        return null;
     }
 
     static getUnnotifiedContributors(evnt, contributors) {

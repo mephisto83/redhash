@@ -2,6 +2,7 @@ var assert = require('assert');
 var distpath = '../distribution';
 var HashGraph = require(`${distpath}/index`).default;
 var HashThread = require(`${distpath}/hashthread`).default;
+var HashThreadConst = require(`${distpath}/hashthread`);
 var HashEvent = require(`${distpath}/hashevent`).default;
 var HashMeta = require(`${distpath}/hashmeta`).default;
 
@@ -26,10 +27,11 @@ describe('HashGraph', function () {
     });
   });
 });
-
+var person = 'person';
+var otherperson = 'otherperson';
+var self = 'self';
 describe('HashThread', function () {
-  var person = 'person';
-  var self = 'self';
+
 
   describe('hashthread instance', function () {
 
@@ -68,9 +70,9 @@ describe('HashThread', function () {
 
     it('when a event is sent, a handler will receive it', () => {
       var hashthread = HashThread.createThread(self);
-      assert.ok(HashThread.SENDEVENT, 'should be a const')
+      assert.ok(HashThreadConst.SENDEVENT, 'should be a const')
       var caught = false;
-      hashthread.listen(HashThread.SENDEVENT, () => {
+      hashthread.listen(HashThreadConst.SENDEVENT, () => {
         caught = true;
       });
       var hashevent = new HashEvent('message');
@@ -80,9 +82,9 @@ describe('HashThread', function () {
 
     it('when a event is sent, a handler will receive it', () => {
       var hashthread = HashThread.createThread(self);
-      assert.ok(HashThread.SENDEVENT, 'should be a const')
+      assert.ok(HashThreadConst.SENDEVENT, 'should be a const')
       var caught = false;
-      hashthread.listen(HashThread.SENDEVENT, () => {
+      hashthread.listen(HashThreadConst.SENDEVENT, () => {
         caught = true;
       });
       var hashevent = new HashEvent('message');
@@ -93,29 +95,29 @@ describe('HashThread', function () {
     it('when an event is received, a handler will handle it', () => {
 
       var hashthread = HashThread.createThread(self);
-      assert.ok(HashThread.RECEIVEEVENT, 'should be a const')
+      assert.ok(HashThreadConst.RECEIVEEVENT, 'should be a const')
       var caught = false;
-      hashthread.listen(HashThread.RECEIVEEVENT, () => {
+      hashthread.listen(HashThreadConst.RECEIVEEVENT, () => {
         caught = true;
       });
       var hashevent = new HashEvent('message');
       hashevent.stamp(self);
-      hashthread.receiveEvent(hashevent);
+      hashthread.receiveEvent(hashevent, self);
       assert.ok(caught);
     });
 
     it('receiving an event twice, will only add it once', () => {
 
       var hashthread = HashThread.createThread(self);
-      assert.ok(HashThread.RECEIVEEVENT, 'should be a const')
+      assert.ok(HashThreadConst.RECEIVEEVENT, 'should be a const')
       var caught = false;
-      hashthread.listen(HashThread.RECEIVEEVENT, () => {
+      hashthread.listen(HashThreadConst.RECEIVEEVENT, () => {
         caught = true;
       });
       var hashevent = new HashEvent('message');
       hashevent.stamp(self);
-      hashthread.receiveEvent(hashevent);
-      hashthread.receiveEvent(hashevent);
+      hashthread.receiveEvent(hashevent, self);
+      hashthread.receiveEvent(strarse(hashevent), self);
       assert.ok(hashthread.eventList.length === 1);
     });
 
@@ -132,7 +134,7 @@ describe('HashThread', function () {
       hashthread.contributorAdd(person);
       var hashevent = new HashEvent('message');
       hashevent.stamp(self);
-      hashthread.receiveEvent(hashevent);
+      hashthread.receiveEvent(hashevent, self);
       assert.ok(!hashthread.eventSeenByAll(hashevent), 'event should have not been seen by all ');
     });
 
@@ -141,7 +143,7 @@ describe('HashThread', function () {
       hashthread.contributorAdd(person);
       var hashevent = new HashEvent('message');
       hashevent.stamp(self);
-      hashthread.receiveEvent(hashevent);
+      hashthread.receiveEvent(hashevent, person);
       assert.ok(hashthread.contributorsWhoHaventSeenEvent(hashevent)[0] === person, 'didnt say person');
     });
 
@@ -164,10 +166,10 @@ describe('HashThread', function () {
 
       var hashthread = HashThread.createThread(self);
       var gotevent = null;
-      hashthread.listen(HashThread.SYSEVENT, (evt) => {
+      hashthread.listen(HashThreadConst.SYSEVENT, (evt) => {
         gotevent = evt;
       });
-      hashthread.receiveEvent(HashEvent.requestAddContributor(person));
+      hashthread.receiveEvent(HashEvent.requestAddContributor(person), self);
       assert.ok(gotevent);
     });
     it('can reply to an add contributor request', () => {
@@ -197,9 +199,12 @@ describe('HashThread', function () {
       var hashthread = HashThread.createThread(self, [self, person]);
       return hashthread;
     }
+
+
+
     it('can reply to an add contributor request', () => {
       var hashthread = setup();
-      var evnts = hashthread.getConsensusEvents();
+      var evnts = hashthread.getCompletedEvents();
       assert.ok(evnts);
       assert.ok(evnts.length === 2, `events should have been 2 but were ${evnts.length}`);
     });
@@ -208,7 +213,7 @@ describe('HashThread', function () {
       var hashthread = setupTwoContributors();
       var request = new HashEvent('message', 'sometype');
       hashthread.sendEvent(request);
-      var evnts = hashthread.getConsensusEvents();
+      var evnts = hashthread.getCompletedEvents();
       assert.ok(evnts);
       assert.ok(evnts.length === 0, `events should have been 2 but were ${evnts.length}`);
     });
@@ -231,6 +236,104 @@ describe('HashThread', function () {
       assert.ok(contribs);
       assert.ok(contribs.length === 1, `events should have been 1 but were ${contribs.length}`);
       assert.ok(contribs[0] === self, ' should have been the self who has see the message');
+    });
+  })
+
+  describe('two hashthreads communicating', () => {
+    function setupTwoCommunicatingContributors() {
+      var s1 = HashThread.createThread(self, [self, person]);
+      var p1 = HashThread.createThread(person, [person, self]);
+      return { s1, p1 };
+    }
+    function setup3CommunicatingContributors() {
+      var s1 = HashThread.createThread(self, [self, person, otherperson]);
+      var p1 = HashThread.createThread(person, [person, self, otherperson]);
+      var p2 = HashThread.createThread(otherperson, [person, self, otherperson]);
+      return { s1, p1, p2 };
+    }
+
+    it('s1 sends a message, p1 will get and reply, meta data will be updated', () => {
+      var { s1, p1 } = setupTwoCommunicatingContributors();
+      assert.ok(s1);
+      assert.ok(p1);
+      var sentEvent;
+      s1.listen(HashThreadConst.SENDEVENT, evt => {
+        sentEvent = evt;
+      })
+      s1.sendEvent(new HashEvent("asndfasdf"));
+      s1.sentEventSuccessfully(sentEvent.id, person);
+      assert.ok(sentEvent);
+      assert.ok(sentEvent.meta);
+      
+      assert.ok(sentEvent.meta[0] === 15, `'meta data should be 15 ' ${sentEvent.meta[0]}`);
+      p1.receiveEvent(strarse(sentEvent), self);
+      // Sent successfully
+      s1.sentEventSuccessfully(s1.eventList[0].id, person);
+
+      var processedEvent = p1.eventList[0];
+      assert.ok(processedEvent);
+      assert.ok(processedEvent.meta);
+      assert.ok(processedEvent.meta[0] === 15, `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
+      assert.ok(sentEvent.meta[0] === 15, `'meta data should be 15 ' ${sentEvent.meta[0]}`);
+
+      var consensus = s1.getCompletedEvents();
+      assert.ok(consensus);
+      assert.ok(consensus.length);
+
+      consensus = p1.getCompletedEvents();
+      assert.ok(consensus);
+      assert.ok(consensus.length);
+
+    });
+
+    it('s1 sends a message, p1 will get and reply, meta data will be updated, but now with a third', () => {
+      var { s1, p1, p2 } = setup3CommunicatingContributors();
+      assert.ok(s1);
+      assert.ok(p1);
+      var sentEvent;
+      s1.listen(HashThreadConst.SENDEVENT, evt => {
+        sentEvent = evt;
+      })
+      s1.sendEvent(new HashEvent("asndfasdf"));
+      HashMeta.print(s1.eventList[0].meta, 3);
+      s1.sentEventSuccessfully(sentEvent.id, person);
+      HashMeta.print(s1.eventList[0].meta, 3);
+      assert.ok(sentEvent);
+      assert.ok(sentEvent.meta);
+
+      assert.ok(sentEvent.meta[0] === parseInt('110110000',2), `'meta data should be ${ parseInt('110110000',2)} ' ${sentEvent.meta[0]}`);
+      p1.receiveEvent(strarse(sentEvent), self);
+      // Sent successfully
+      s1.sentEventSuccessfully(s1.eventList[0].id, person);
+
+      var processedEvent = p1.eventList[0];
+      assert.ok(processedEvent);
+      assert.ok(processedEvent.meta);
+      
+      assert.ok(processedEvent.meta[0] ===  parseInt('110110000',2), `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
+      assert.ok(sentEvent.meta[0] ===  parseInt('110110000',2), `'meta data should be 15 ' ${sentEvent.meta[0]}`);
+
+      var consensus = s1.getCompletedEvents();
+      assert.ok(consensus);
+      assert.ok(consensus.length === 0);
+
+      consensus = p1.getCompletedEvents();
+      assert.ok(consensus);
+      assert.ok(consensus.length === 0);
+
+      consensus = p2.getCompletedEvents();
+      assert.ok(consensus);
+      assert.ok(consensus.length === 0);
+
+      
+      p1.sentEventSuccessfully(p1.eventList[0].id,  otherperson);
+      p2.receiveEvent(strarse(p1.eventList[0]), person);
+
+
+      consensus = p2.getConsensusEvents();
+      HashMeta.print(p2.eventList[0].meta, 3);
+      assert.ok(consensus);
+      assert.ok(consensus.length === 1, 'this should have reached consensus, but not complete knowledge.');
     });
   })
 });
@@ -263,7 +366,6 @@ describe('HashMeta', function () {
     it('should set the bit correctly', () => {
       var res = HashMeta.create(2);
       var updated = HashMeta.set(res, 0, 0, 1, 2);
-      console.log(updated);
       assert.ok(updated);
       assert.ok(updated[0].toString(2) === '1');
     });
@@ -271,11 +373,8 @@ describe('HashMeta', function () {
 
       var res = HashMeta.create(2);
       res = HashMeta.set(res, 0, 1, 1, 2);
-      console.log(res)
       res = HashMeta.set(res, 1, 1, 1, 2);
-      console.log(res)
       var row = HashMeta.row(res, 1, 2);
-      console.log(row);
       assert.ok(row.length === 2, `the row should be 2 long instead of ${row}`);
       assert.ok(row[0] === 1);
       assert.ok(row[1] === 1);
@@ -300,9 +399,7 @@ describe('HashMeta', function () {
          000100 [xor]
          101010
       */
-     console.log(`${res[0].toString(2)}`)
       var result = HashMeta.rowOr(res, 0, 1, 2);
-      console.log(`${result[0].toString(2)}`)
       assert.ok(result[0] === 10, `' it should be 10 and not ${result[0]}`);
     });
 
@@ -325,28 +422,21 @@ describe('HashMeta', function () {
     it('should set the bit correctly', () => {
       var res = HashMeta.create(2);
       var updated = HashMeta.set(res, 1, 1, 1, 2);
-      console.log(updated);
       assert.ok(updated);
-      console.log(updated[0].toString(2));
       assert.ok(updated[0].toString(2) === '1000');
     });
-
 
     it('should set the bit correctly', () => {
       var res = HashMeta.create(2);
       var updated = HashMeta.set(res, 1, 1, 1, 3);
-      console.log(updated);
       assert.ok(updated);
-      console.log(updated[0].toString(2));
       assert.ok(updated[0].toString(2) === '10000');
     });
 
     it('should set the bit correctly', () => {
       var res = HashMeta.create(2);
       var updated = HashMeta.set(res, 1, 0, 1, 3);
-      console.log(updated);
       assert.ok(updated);
-      console.log(updated[0].toString(2));
       assert.ok(updated[0].toString(2) === '10');
     });
 
@@ -358,3 +448,8 @@ describe('HashMeta', function () {
     })
   })
 });
+
+
+function strarse(t) {
+  return JSON.parse(JSON.stringify(t))
+}
