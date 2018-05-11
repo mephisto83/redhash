@@ -10,7 +10,7 @@ export default class HashThread {
     constructor(contribs, self) {
         //A list of contributors
         this.contributors = (contribs || []).sort();
-        console.log(this.contributors);
+
         this.self = self;
         //List of events that have occurred, only contributors
         //may add to this list.
@@ -25,8 +25,15 @@ export default class HashThread {
     }
 
     handleUpdateEvent(evt) {
-        var { updated, original } = evt;
-
+        var me = this;
+        var { update, original, from } = evt;
+        console.log(original);
+        if (original && update) {
+            HashEvent.combine(update, original);
+            if (original instanceof HashEvent) {
+                original.setMetaEvidence(from, this.self, this.contributors);
+            }
+        }
     }
     handleReceivedEvent(args) {
         if (args) {
@@ -82,11 +89,20 @@ export default class HashThread {
             return HashEvent.hasReachedCompleted(t, me.contributors.length)
         });
     }
-    getConsensusEvents(){
+    getConsensusEvents() {
         var me = this;
         return me.eventList.filter(t => {
             return HashEvent.hasReachedConsensus(t, me.contributors)
         });
+    }
+    getNextPossibleDestinationsFor(evntId) {
+        var me = this;
+        var evnt = me.getEvent(evntId);
+        return HashEvent.getUncontacted(evnt, me.contributors, me.self);
+    }
+    getEvent(id) {
+        var me = this;
+        return me.eventList.find(t => t.id === id);
     }
     getListEvent(index) {
         var me = this;
@@ -109,6 +125,8 @@ export default class HashThread {
             this.eventList.push(newevent);
             this.raiseEvent(SENDEVENT, newevent);
         }
+    }
+    sendEventId(evt, person) {
     }
     sentEventSuccessfully(eventId, to) {
         var evt = this.eventList.find(t => t.id === eventId);

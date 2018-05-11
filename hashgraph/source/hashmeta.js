@@ -27,10 +27,6 @@ export default class HashMeta {
 
             return [...array.map((t, i) => {
                 if (i === arrayIndex) {
-                    if (x === y && x === 0 && i === 0) {
-                        console.log(_bits_);
-                        console.log(bit_number);
-                    }
                     return _bits_ | bit_number;
                 }
                 return t;

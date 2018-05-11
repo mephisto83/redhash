@@ -264,7 +264,7 @@ describe('HashThread', function () {
       s1.sentEventSuccessfully(sentEvent.id, person);
       assert.ok(sentEvent);
       assert.ok(sentEvent.meta);
-      
+
       assert.ok(sentEvent.meta[0] === 15, `'meta data should be 15 ' ${sentEvent.meta[0]}`);
       p1.receiveEvent(strarse(sentEvent), self);
       // Sent successfully
@@ -301,7 +301,7 @@ describe('HashThread', function () {
       assert.ok(sentEvent);
       assert.ok(sentEvent.meta);
 
-      assert.ok(sentEvent.meta[0] === parseInt('110110000',2), `'meta data should be ${ parseInt('110110000',2)} ' ${sentEvent.meta[0]}`);
+      assert.ok(sentEvent.meta[0] === parseInt('110110000', 2), `'meta data should be ${parseInt('110110000', 2)} ' ${sentEvent.meta[0]}`);
       p1.receiveEvent(strarse(sentEvent), self);
       // Sent successfully
       s1.sentEventSuccessfully(s1.eventList[0].id, person);
@@ -309,9 +309,9 @@ describe('HashThread', function () {
       var processedEvent = p1.eventList[0];
       assert.ok(processedEvent);
       assert.ok(processedEvent.meta);
-      
-      assert.ok(processedEvent.meta[0] ===  parseInt('110110000',2), `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
-      assert.ok(sentEvent.meta[0] ===  parseInt('110110000',2), `'meta data should be 15 ' ${sentEvent.meta[0]}`);
+
+      assert.ok(processedEvent.meta[0] === parseInt('110110000', 2), `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
+      assert.ok(sentEvent.meta[0] === parseInt('110110000', 2), `'meta data should be 15 ' ${sentEvent.meta[0]}`);
 
       var consensus = s1.getCompletedEvents();
       assert.ok(consensus);
@@ -325,8 +325,8 @@ describe('HashThread', function () {
       assert.ok(consensus);
       assert.ok(consensus.length === 0);
 
-      
-      p1.sentEventSuccessfully(p1.eventList[0].id,  otherperson);
+
+      p1.sentEventSuccessfully(p1.eventList[0].id, otherperson);
       p2.receiveEvent(strarse(p1.eventList[0]), person);
 
 
@@ -334,6 +334,18 @@ describe('HashThread', function () {
       HashMeta.print(p2.eventList[0].meta, 3);
       assert.ok(consensus);
       assert.ok(consensus.length === 1, 'this should have reached consensus, but not complete knowledge.');
+
+      var p2_dest = p2.getNextPossibleDestinationsFor(p2.eventList[0].id);
+      console.log(p2_dest);
+      assert.ok(p2_dest);
+      assert.ok(p2_dest.length === 1);
+      s1.receiveEvent(strarse(p2.eventList[0]), otherperson);
+      p2.sentEventSuccessfully(p2.eventList[0].id, self);
+      console.log('**********************')
+
+      HashMeta.print(s1.eventList[0].meta, 3);
+      HashMeta.print(p1.eventList[0].meta, 3);
+      HashMeta.print(p2.eventList[0].meta, 3);
     });
   })
 });

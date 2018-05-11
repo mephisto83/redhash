@@ -90,11 +90,20 @@ export default class HashEvent {
         HashEvent.updateMeta(this, self, contributors, contributor);
         return this;
     }
+    static combine(updated, original) {
+        if (updated && original && updated.meta && original.meta)
+            original.meta = HashMeta.or(updated.meta, original.meta);
+        for (var i in updated.history) {
 
+            if (!original.history[i]) {
+                original.history[i] = updated.history[i];
+            }
+        }
+        return original;
+    }
     static updateMeta(evnt, self, contributors, from) {
         if (evnt instanceof HashEvent) {
             var index = contributors.indexOf(self);
-            console.log(`self ${self}: ${index}`);
 
             evnt.setMetaContributorReceived(self, contributors);
             contributors.map((c, i) => {
@@ -106,6 +115,16 @@ export default class HashEvent {
 
     static hasReachedCompleted(evnt, size) {
         return HashMeta.consensus(evnt.meta, size);
+    }
+    static getUncontacted(evnt, contributors, self) {
+        var index = contributors.indexOf(self);
+        var column = HashMeta.column(evnt.meta, index, contributors.length);
+        return column.map((t, i) => {
+            if (!t) {
+                return contributors[i];
+            }
+            return null;
+        }).filter(t => t);
     }
     static hasReachedConsensus(evnt, contributors) {
         var rows = HashMeta.rows(evnt.meta, contributors.length);
