@@ -172,6 +172,7 @@ describe('HashThread', function () {
       hashthread.receiveEvent(HashEvent.requestAddContributor(person), self);
       assert.ok(gotevent);
     });
+
     it('can reply to an add contributor request', () => {
       var hashthread = HashThread.createThread(self);
       var request = HashEvent.requestAddContributor(person);
@@ -183,6 +184,7 @@ describe('HashThread', function () {
       assert.ok(event.meta.length === 1, 'there should be only a single number here');
       assert.ok(event.meta[0] === 1, 'the sender should automatically say they have received the message');
     });
+
     function setup() {
       var hashthread = HashThread.createThread(self);
       var request = HashEvent.requestAddContributor(person);
@@ -195,12 +197,11 @@ describe('HashThread', function () {
       assert.ok(event.meta[0] === 1, 'the sender should automatically say they have received the message');
       return hashthread;
     }
+
     function setupTwoContributors() {
       var hashthread = HashThread.createThread(self, [self, person]);
       return hashthread;
     }
-
-
 
     it('can reply to an add contributor request', () => {
       var hashthread = setup();
@@ -237,7 +238,8 @@ describe('HashThread', function () {
       assert.ok(contribs.length === 1, `events should have been 1 but were ${contribs.length}`);
       assert.ok(contribs[0] === self, ' should have been the self who has see the message');
     });
-  })
+
+  });
 
   describe('two hashthreads communicating', () => {
     function setupTwoCommunicatingContributors() {
@@ -250,6 +252,15 @@ describe('HashThread', function () {
       var p1 = HashThread.createThread(person, [person, self, otherperson]);
       var p2 = HashThread.createThread(otherperson, [person, self, otherperson]);
       return { s1, p1, p2 };
+    }
+    function setupThreads(num) {
+      var persons = [].interpolate(0, num, function (i) {
+        return 'person-' + i;
+      });
+
+      return persons.map(p => {
+        return HashThread.createThread(p, [...persons]);
+      })
     }
 
     it('s1 sends a message, p1 will get and reply, meta data will be updated', () => {
@@ -293,7 +304,8 @@ describe('HashThread', function () {
       var sentEvent;
       s1.listen(HashThreadConst.SENDEVENT, evt => {
         sentEvent = evt;
-      })
+      });
+
       s1.sendEvent(new HashEvent("asndfasdf"));
       HashMeta.print(s1.eventList[0].meta, 3);
       s1.sentEventSuccessfully(sentEvent.id, person);
@@ -347,7 +359,53 @@ describe('HashThread', function () {
       HashMeta.print(p1.eventList[0].meta, 3);
       HashMeta.print(p2.eventList[0].meta, 3);
     });
-  })
+
+    it('event dispersion from thread 0 to thread 1 ', () => {
+      var _thread_count_ = 10;
+      var threads = setupThreads(_thread_count_);
+      var sentEvent;
+
+      threads[0].listen(HashThreadConst.SENDEVENT, evt => {
+        sentEvent = evt;
+      });
+
+      threads[0].sendEvent(new HashEvent("asndfasdf"));
+      HashMeta.print(threads[0].eventList[0].meta, _thread_count_);
+      threads[1].receiveEvent(strarse(sentEvent), threads[0].self);
+      threads[0].sentEventSuccessfully(threads[0].eventList[0].id, threads[1].self);
+      HashMeta.print(threads[0].eventList[0].meta, _thread_count_);
+      HashMeta.print(threads[1].eventList[0].meta, _thread_count_);
+    });
+
+
+    it('event dispersion from thread 0 to thread 1..n', () => {
+      var _thread_count_ = 10;
+      var threads = setupThreads(_thread_count_);
+      var sentEvent;
+
+      threads[0].listen(HashThreadConst.SENDEVENT, evt => {
+        sentEvent = evt;
+      });
+      //Puts event into the "system"
+      threads[0].sendEvent(new HashEvent("asndfasdf"));
+
+      var destinations = threads[0].getNextPossibleDestinationsFor(sentEvent.id);
+      var count = 0
+      while (destinations.length && count < 12) {
+        console.log(destinations);
+        var tempThread = threads.find(t => t.self === destinations[0]);
+        assert.ok(tempThread, 'should find a thread');
+        tempThread.receiveEvent(strarse(sentEvent), threads[0].self);
+        threads[0].sentEventSuccessfully(threads[0].eventList[0].id, tempThread.self);
+
+        count++;
+        destinations = threads[0].getNextPossibleDestinationsFor(sentEvent.id);
+      }
+      assert.ok(count === 9);
+      HashMeta.print(threads[0].eventList[0].meta, _thread_count_);
+      HashMeta.print(threads[8].eventList[0].meta, _thread_count_);
+    });
+  });
 });
 
 describe('HashEvent', function () {
@@ -372,7 +430,12 @@ describe('HashMeta', function () {
 
     it('should create enough space for 32 contributors', function () {
       var res = HashMeta.create(32);
-      assert.ok(res.length === 32, 'should have been 1 number');
+      assert.ok(res.length === 32, 'should have been 32  number');
+    });
+
+    it('should create enough space for 32 contributors', function () {
+      var res = HashMeta.create(100);
+      assert.ok(res.length === 313, `'should have been ${res.length}  number'`);
     });
 
     it('should set the bit correctly', () => {
@@ -381,6 +444,7 @@ describe('HashMeta', function () {
       assert.ok(updated);
       assert.ok(updated[0].toString(2) === '1');
     });
+
     it('should get a row from a hash', () => {
 
       var res = HashMeta.create(2);
@@ -390,7 +454,8 @@ describe('HashMeta', function () {
       assert.ok(row.length === 2, `the row should be 2 long instead of ${row}`);
       assert.ok(row[0] === 1);
       assert.ok(row[1] === 1);
-    })
+    });
+
     it('should or a row', () => {
       var res = HashMeta.create(2);
       res = HashMeta.set(res, 1, 1, 1, 2);
@@ -457,11 +522,42 @@ describe('HashMeta', function () {
       var updated = HashMeta.set(res, 1, 0, 1, 3);
       var duplicate = HashMeta.copy(updated);
       assert.ok(duplicate);
-    })
+    });
+
+    it('should set the large bit correctly', () => {
+      var updated = HashMeta.create(10);
+      updated = HashMeta.set(updated, 1, 3, 1, 10);
+      updated = HashMeta.set(updated, 2, 3, 1, 10);
+
+      assert.ok(updated.filter((t, i) => t === [-2147483648, 1, 0, 0][i]))
+      assert.ok(updated);
+      // HashMeta.print(updated, 10);
+    });
   })
 });
 
+describe('Messaging Harness', function () {
+  it('describes what a messaging service looks like', () => {
 
+    var service = {
+      send: (message, to) => {
+        to = to || ['to', 'and', 'to2']
+
+        return Promise.resolve().then(() => {
+          var results = {
+            'to': { success: true },
+            'and': { success: false },
+            'to2': { success: true }
+          }
+          return results;
+        })
+      },
+      received: (message, from) => {
+        HashGraph.receiveEvent(message, from);
+      }
+    };
+  })
+});
 function strarse(t) {
   return JSON.parse(JSON.stringify(t))
 }

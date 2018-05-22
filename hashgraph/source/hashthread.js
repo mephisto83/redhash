@@ -27,7 +27,7 @@ export default class HashThread {
     handleUpdateEvent(evt) {
         var me = this;
         var { update, original, from } = evt;
-        console.log(original);
+
         if (original && update) {
             HashEvent.combine(update, original);
             if (original instanceof HashEvent) {
@@ -38,9 +38,9 @@ export default class HashThread {
     handleReceivedEvent(args) {
         if (args) {
             var { event, from } = args;
-            if (event) {
-
+            if (event instanceof HashEvent) {
                 HashEvent.updateMeta(event, this.self, this.contributors, from);
+                event.setMetaEvidence(from, this.self, this.contributors);
                 this.raiseEvent(EVENTUPDATED, args);
             }
         }
