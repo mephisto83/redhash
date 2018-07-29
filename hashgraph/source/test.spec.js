@@ -1,10 +1,19 @@
-var assert = require('assert');
-var distpath = '../distribution';
-var HashGraph = require(`${distpath}/index`).default;
-var HashThread = require(`${distpath}/hashthread`).default;
-var HashThreadConst = require(`${distpath}/hashthread`);
-var HashEvent = require(`${distpath}/hashevent`).default;
-var HashMeta = require(`${distpath}/hashmeta`).default;
+// var assert = require('assert');
+// var distpath = '../distribution';
+// var HashGraph = require(`${distpath}/index`).default;
+// var HashThread = require(`${distpath}/hashthread`).default;
+// var HashThreadConst = require(`${distpath}/hashthread`);
+// var HashEvent = require(`${distpath}/hashevent`).default;
+// var HashMeta = require(`${distpath}/hashmeta`).default;
+// var TestMessageService = require(`${distpath}/testmessageservice`).default;
+import assert from 'assert';
+import HashGraph from './index';
+import HashThread from './hashthread';
+import * as HashThreadConst from './hashthread';
+import HashEvent from './hashevent';
+import HashMeta from './hashmeta';
+import HashLine from './hashline';
+import TestMessageService from './testmessageservice';
 
 describe('Array', function () {
   describe('#indexOf()', function () {
@@ -22,9 +31,36 @@ describe('HashGraph', function () {
     });
     it('should add a hashthread', function () {
       var hashgraph = new HashGraph();
-      hashgraph.createThread();
-      assert.ok(hashgraph.threads.length);
+      hashgraph.createLine('name', 'self');
+
+      assert.ok(hashgraph.lines.length);
     });
+  });
+  describe('hash graph send and receive messages', function () {
+    it('assign a message service type', () => {
+      var hashgraph = new HashGraph();
+      hashgraph.setMessageServiceType(function (id) { return new TestMessageService(id) });
+      assert.ok(hashgraph.messageServiceType);
+    });
+
+    it('it can create a message service instance, with an id', () => {
+      var hashgraph = new HashGraph();
+      hashgraph.setMessageServiceType(function (id) {
+        return new TestMessageService(id)
+      });
+      hashgraph.createMessageService();
+      assert.ok(hashgraph.messageService)
+    });
+
+    it('can create a hashline', () => {
+      var hashgraph = new HashGraph();
+      hashgraph.createLine('name', 'self');
+    });
+    it('can get a line by name ', () => {
+      var hashgraph = new HashGraph();
+      var line = hashgraph.createLine('name','self').getLine('name');
+      assert.ok(line);
+    })
   });
 });
 var person = 'person';
@@ -39,6 +75,7 @@ describe('HashThread', function () {
       var hashthread = HashThread.createThread(self);
       assert.ok(hashthread);
       assert.ok(hashthread.contributors.length);
+      assert.ok(hashthread.eventIndex === 0)
       assert.ok(hashthread.self === self, 'is not equal to self');
     });
 
@@ -63,6 +100,7 @@ describe('HashThread', function () {
       var hashthread = HashThread.createThread(self);
       var hashevent = new HashEvent('message');
       hashthread.sendEvent(hashevent);
+      assert.ok(hashthread.eventIndex === 1)
       assert.ok(hashthread.eventList.length === 1, 'the list should be 1 event long');
       var evt = hashthread.eventList[0];
       assert.ok(evt.history[self]);
@@ -89,6 +127,8 @@ describe('HashThread', function () {
       });
       var hashevent = new HashEvent('message');
       hashthread.sendEvent(hashevent);
+      assert.ok(hashthread.eventHeads);
+      assert.ok(hashthread.eventHeads[self]);
       assert.ok(caught);
     });
 
@@ -287,6 +327,14 @@ describe('HashThread', function () {
       assert.ok(processedEvent.meta[0] === 15, `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
       assert.ok(sentEvent.meta[0] === 15, `'meta data should be 15 ' ${sentEvent.meta[0]}`);
 
+      assert.ok(s1.eventHeads);
+      assert.ok(s1.eventHeads[self]);
+      assert.ok(s1.eventHeads[person] === undefined);
+
+      assert.ok(p1.eventHeads, 'p1 event heads is null or something');
+      assert.ok(p1.eventHeads[self], 'p1 self event heads is null or something');
+      assert.ok(p1.eventHeads[person] === undefined);
+
       var consensus = s1.getCompletedEvents();
       assert.ok(consensus);
       assert.ok(consensus.length);
@@ -358,6 +406,13 @@ describe('HashThread', function () {
       HashMeta.print(s1.eventList[0].meta, 3);
       HashMeta.print(p1.eventList[0].meta, 3);
       HashMeta.print(p2.eventList[0].meta, 3);
+
+
+      assert.ok(s1.eventHeads);
+      assert.ok(s1.eventHeads[self]);
+      assert.ok(s1.eventHeads[person] === undefined);
+      assert.ok(s1.eventHeads[otherperson] === 1, 'is otherpersion not right');
+
     });
 
     it('event dispersion from thread 0 to thread 1 ', () => {
@@ -404,6 +459,11 @@ describe('HashThread', function () {
       assert.ok(count === 9);
       HashMeta.print(threads[0].eventList[0].meta, _thread_count_);
       HashMeta.print(threads[8].eventList[0].meta, _thread_count_);
+
+
+      assert.ok(threads[0].eventHeads);
+      assert.ok(threads[0].eventHeads[threads[0].self]);
+      assert.ok(threads[0].eventHeads[threads[0].self] === 1, 'is otherpersion not right ' + threads[0].eventHeads[threads[0].id]);
     });
   });
 });
@@ -536,28 +596,92 @@ describe('HashMeta', function () {
   })
 });
 
+
 describe('Messaging Harness', function () {
-  it('describes what a messaging service looks like', () => {
 
-    var service = {
-      send: (message, to) => {
-        to = to || ['to', 'and', 'to2']
+  describe('use test message service', () => {
+    beforeEach(() => {
+      TestMessageService.clear();
+    });
 
-        return Promise.resolve().then(() => {
-          var results = {
-            'to': { success: true },
-            'and': { success: false },
-            'to2': { success: true }
-          }
-          return results;
-        })
-      },
-      received: (message, from) => {
-        HashGraph.receiveEvent(message, from);
-      }
-    };
-  })
+
+    it('can create test message service', (done) => {
+      var tms = new TestMessageService('1');
+      var tms2 = new TestMessageService('2');
+      let called = false;
+      let notcalled = false;
+      let sentmessagesuccessfully = false;
+      tms.send('message', '2').then(res => {
+        console.log('sent message successfully');
+        sentmessagesuccessfully = true;
+      }).catch(e => {
+        assert(false, 'send failed during promise')
+      }).then(() => {
+        assert(sentmessagesuccessfully, 'failed to send message');
+        done();
+      });
+      tms2.onmessage(function (msg, from, to) {
+        called = true;
+        assert(from === '1', 'message came from wrong person');
+      });
+      TestMessageService.globalStep();
+      assert(called, 'tm2 didnt receive a message');
+      assert(!notcalled, 'something failed in the service');
+    });
+
+    it('can create test message service and send and receive messages', (done) => {
+      var tms = new TestMessageService('1');
+      var tms2 = new TestMessageService('2');
+      let called = false;
+      let called2 = false;
+      let notcalled = false;
+
+      // Receive message setups
+      tms2.onmessage(function (msg, from, to) {
+        called = true;
+        assert(from === '1', 'message came from wrong person');
+      });
+
+      tms.onmessage(function (msg, from, to) {
+        called2 = true;
+        assert(from === '2', 'message came from wrong person');
+      });
+      // Send mesages
+      tms.send('message', '2').then(() => {
+        console.log('sent message from tms');
+        var res = tms2.send('reply', '1').then(() => {
+          console.log('sent message from tms2');
+          assert(called2, 'tms didnt receive a message');
+          assert(!notcalled, 'something failed in the service');
+          assert.equal(0, TestMessageService.getPipeline().length, 'wrong number of messages in pipeline should be 1');
+          done();
+        });
+        TestMessageService.globalStep();
+        return res;
+      });
+      assert.equal(1, TestMessageService.getPipeline().length, 'wrong number of messages in pipeline should be 1');
+      TestMessageService.globalStep();
+    });
+
+
+  });
+
+  describe('hash graph ', () => {
+    it('create a hash graph in the test message service', () => {
+      var hg = new HashGraph()
+        .setMessageServiceType(TestMessageService)
+        .createLine('1','self');
+
+      assert(hg, 'should have a value');
+
+      var thread = hg.getLine('1');
+      assert(thread, 'should have a value');
+
+    });
+  });
 });
+
+
 function strarse(t) {
   return JSON.parse(JSON.stringify(t))
 }

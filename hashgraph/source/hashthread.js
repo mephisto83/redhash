@@ -1,17 +1,21 @@
 import * as Util from './util';
 import HashEvent from './hashevent';
-import HashMeta from './hashmeta';
 import * as HE from './hashevent';
-import HashSysEvent from './events/hashsysevent';
 //Hash thread is a single hash graph structure, whose contributors are 
 //is an mutable list
 
 export default class HashThread {
-    constructor(contribs, self) {
+    constructor(contribs, self, id) {
+        this.threadId = id || Util.GUID();
         //A list of contributors
         this.contributors = (contribs || []).sort();
-
+        // The event index
+        // Used so that receivers know if they have received all the events.
+        this.eventIndex = 0;
         this.self = self;
+        this.name = null;
+        // An array of event heads from the contributors.
+        this.eventHeads = {};
         //List of events that have occurred, only contributors
         //may add to this list.
         this.eventList = [];
@@ -32,6 +36,7 @@ export default class HashThread {
             HashEvent.combine(update, original);
             if (original instanceof HashEvent) {
                 original.setMetaEvidence(from, this.self, this.contributors);
+                this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, original.eventIndex);
             }
         }
     }
@@ -42,6 +47,8 @@ export default class HashThread {
                 HashEvent.updateMeta(event, this.self, this.contributors, from);
                 event.setMetaEvidence(from, this.self, this.contributors);
                 this.raiseEvent(EVENTUPDATED, args);
+
+                this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, event.eventIndex);
             }
         }
     }
@@ -56,6 +63,8 @@ export default class HashThread {
     static copy(thread) {
         var duplicate = new HashThread([...(thread.contributors || [])], thread.self);
         duplicate.eventList = [...(thread.eventList || [])];
+        duplicate.eventHeads = Object.assign({}, thread.eventHeads);
+        duplicate.eventIndex = thread.eventIndex;
         duplicate.listeners = [...(thread.listeners || [])];
         duplicate._id = thread.id;
         return duplicate
@@ -117,11 +126,13 @@ export default class HashThread {
     // A new event created by the local client.
     sendEvent(hashEvent) {
         if (hashEvent instanceof HashEvent) {
+            this.eventIndex++;
             var newevent = hashEvent
-                .stamp(this.self)
+                .stamp(this.self, this.eventIndex, this.threadId)
                 .setupMeta(this.contributors.length)
                 .setMetaContributorReceived(this.self, this.contributors);
 
+            this.eventHeads[this.self] = Math.max(this.eventHeads[this.self] || 0, newevent.eventIndex);
             this.eventList.push(newevent);
             this.raiseEvent(SENDEVENT, newevent);
         }
@@ -132,6 +143,7 @@ export default class HashThread {
         var evt = this.eventList.find(t => t.id === eventId);
         if (evt instanceof HashEvent) {
             evt.setMetaEvidence(to, this.self, this.contributors);
+            this.eventHeads[this.self] = Math.max(this.eventHeads[this.self], evt.eventIndex);
         }
     }
 
@@ -155,6 +167,7 @@ export default class HashThread {
                 this.eventList.push(newevent);
                 switch (newevent.type) {
                     case HE.ADD_CONTRIBUTOR:
+
                         this.raiseEvent(SYSEVENT, {
                             event: newevent,
                             from: receivedFrom

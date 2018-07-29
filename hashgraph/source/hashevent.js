@@ -4,8 +4,10 @@ export default class HashEvent {
     constructor(_message, type) {
         this.history = {};
         this.message = _message;
+        this.eventIndex = null;
         this._type = type;
         this.id = Util.GUID();
+        this.threadId = null;
         this.meta = null;
     }
     get type() {
@@ -31,7 +33,9 @@ export default class HashEvent {
         var duplicate = new HashEvent();
         duplicate.history = Object.assign(duplicate.history, hashEvent.history);
         duplicate.id = hashEvent.id;
+        duplicate.threadId = hashEvent.threadId
         duplicate._type = hashEvent._type;
+        duplicate.eventIndex = hashEvent.eventIndex;
         duplicate.message = hashEvent.message;
         duplicate.meta = HashMeta.copy(hashEvent.meta);
 
@@ -41,7 +45,9 @@ export default class HashEvent {
         var hashEvent = new HashEvent(_obj.message, _obj.type);
         hashEvent.applyHistory(_obj.history);
         hashEvent._type = _obj._type;
-        hashEvent.meta = _obj.meta;
+        hashEvent.eventIndex = _obj.eventIndex;
+        hashEvent.meta = HashMeta.copy(_obj.meta);
+        hashEvent.threadId = _obj.threadId
         hashEvent.id = _obj.id;
         return hashEvent;
     }
@@ -51,10 +57,14 @@ export default class HashEvent {
     getHistory() {
         return this.history;
     }
-    stamp(contributor) {
+    stamp(contributor, index, threadId) {
         this.history = Object.assign({}, {
             [contributor]: Date.now()
         }, this.history);
+        if (index)
+            this.eventIndex = index;
+        if (threadId)
+            this.threadId = threadId;
         return this;
     }
     setupMeta(numberOfContributors) {
