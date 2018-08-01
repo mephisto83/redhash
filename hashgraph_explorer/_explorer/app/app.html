@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Karma">
+    <title>W3.CSS Template</title>
+    <style>
+        body,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-family: sans-serif
+        }
+
+        .w3-bar-block .w3-bar-item {
+            padding: 20px
+        }
+    </style>
+    <script>
+        (function () {
+            if (!process.env.HOT) {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = './dist/style.css';
+                // HACK: Writing the script path should be done with webpack
+                document.getElementsByTagName('head')[0].appendChild(link);
+            }
+        }());
+    </script>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script>
+        {
+            const scripts = [];
+
+            // Dynamically insert the DLL script in development env in the
+            // renderer process
+            if (process.env.NODE_ENV === 'development') {
+                scripts.push('../dll/renderer.dev.dll.js');
+            }
+
+            // Dynamically insert the bundled app script in the renderer process
+            const port = process.env.PORT || 1212;
+            scripts.push(
+                (process.env.HOT)
+                    ? 'http://localhost:' + port + '/dist/renderer.dev.js'
+                    : './dist/renderer.prod.js'
+            );
+
+            document.write(
+                scripts
+                    .map(script => `<script defer src="${script}"><\/script>`)
+                    .join('')
+            );
+        }
+    </script>
+</body>
+
+</html>
