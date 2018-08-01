@@ -3,6 +3,7 @@ import HashMeta from './hashmeta';
 export default class HashEvent {
     constructor(_message, type) {
         this.history = {};
+        this.time = Infinity;
         this.message = _message;
         this.eventIndex = null;
         this._type = type;
@@ -32,6 +33,7 @@ export default class HashEvent {
         }
         var duplicate = new HashEvent();
         duplicate.history = Object.assign(duplicate.history, hashEvent.history);
+        duplicate.updateTime();
         duplicate.id = hashEvent.id;
         duplicate.threadId = hashEvent.threadId
         duplicate._type = hashEvent._type;
@@ -51,21 +53,45 @@ export default class HashEvent {
         hashEvent.id = _obj.id;
         return hashEvent;
     }
+    updateTime() {
+        var me = this;
+        var hist = Object.keys(me.history);
+        var total = hist.reduce((previousValue, currentValue, currentIndex, array) => {
+            return previousValue + me.history[currentValue];
+        }, 0);
+        if (hist.length) {
+            this.time = total / hist.length;
+        }
+
+    }
     applyHistory(hist) {
         this.history = Object.assign({}, hist);
+        this.updateTime();
     }
     getHistory() {
         return this.history;
     }
+    getNow() {
+        if (HashEvent.timeService && HashEvent.timeService.now) {
+            return HashEvent.timeService.now();
+        }
+        return Date.now();
+    }
     stamp(contributor, index, threadId) {
         this.history = Object.assign({}, {
-            [contributor]: Date.now()
+            [contributor]: this.getNow()
         }, this.history);
+
+        this.updateTime();
+
         if (index)
             this.eventIndex = index;
         if (threadId)
             this.threadId = threadId;
         return this;
+    }
+    print( size) {
+        HashMeta.print(this.meta, size);
     }
     setupMeta(numberOfContributors) {
         this.meta = HashMeta.create(numberOfContributors);
@@ -109,6 +135,9 @@ export default class HashEvent {
                 original.history[i] = updated.history[i];
             }
         }
+
+        original.updateTime();
+
         return original;
     }
     static updateMeta(evnt, self, contributors, from) {

@@ -19,6 +19,9 @@ export default class HashThread {
         //List of events that have occurred, only contributors
         //may add to this list.
         this.eventList = [];
+        this.sentEvents = {
+
+        };
         this.listeners = [];
         this.init();
     }
@@ -27,7 +30,11 @@ export default class HashThread {
         this.listen(RECEIVEEVENT, this.handleReceivedEvent.bind(this));
         this.listen(EVENTUPDATED, this.handleUpdatedEvent.bind(this));
     }
-
+    sortEvents() {
+        this.eventList = [...this.eventList.sort((a, b) => {
+            return a.time - b.time;
+        })]
+    }
     handleUpdateEvent(evt) {
         var me = this;
         var { update, original, from } = evt;
@@ -38,6 +45,7 @@ export default class HashThread {
                 original.setMetaEvidence(from, this.self, this.contributors);
                 this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, original.eventIndex);
             }
+            this.sortEvents();
         }
     }
     handleReceivedEvent(args) {
@@ -63,6 +71,7 @@ export default class HashThread {
     static copy(thread) {
         var duplicate = new HashThread([...(thread.contributors || [])], thread.self);
         duplicate.eventList = [...(thread.eventList || [])];
+        duplicate.sortEvents();
         duplicate.eventHeads = Object.assign({}, thread.eventHeads);
         duplicate.eventIndex = thread.eventIndex;
         duplicate.listeners = [...(thread.listeners || [])];
@@ -94,6 +103,7 @@ export default class HashThread {
     }
     getCompletedEvents() {
         var me = this;
+
         return me.eventList.filter(t => {
             return HashEvent.hasReachedCompleted(t, me.contributors.length)
         });
@@ -104,10 +114,60 @@ export default class HashThread {
             return HashEvent.hasReachedConsensus(t, me.contributors)
         });
     }
+    getNonConsensusEvents() {
+        var me = this;
+        return me.eventList.filter(t => {
+            return !HashEvent.hasReachedCompleted(t, me.contributors.length)
+        });
+    }
+    printEvents() {
+        var me = this;
+        return me.eventList.map((t, i) => {
+            console.log({
+                id: t.id,
+                index: i,
+                consensus: HashEvent.hasReachedConsensus(t, me.contributors),
+                completed: HashEvent.hasReachedCompleted(t, me.contributors.length)
+            })
+            t.print(me.contributors.length);
+        })
+    }
     getNextPossibleDestinationsFor(evntId) {
         var me = this;
         var evnt = me.getEvent(evntId);
         return HashEvent.getUncontacted(evnt, me.contributors, me.self);
+    }
+    _getTargeMinimum(dic) {
+        var min = Infinity;
+        var value = Object.keys(dic).reduce((prev, current) => {
+            return Math.min(dic[prev], dic[current]);
+        }, min);
+
+        return value;
+    }
+    getEventsToSend() {
+        var me = this;
+        var evnts = me.getNonConsensusEvents();
+        var res = evnts.sort((b, a) => {
+            var _a = me.sentEvents[a.id] || {};
+            var _b = me.sentEvents[b.id] || {};
+
+            if (_a.count && _b.count) {
+                if (_a.count === _b.count) {
+                    var a_min = me._getTargeMinimum(_a.target);
+                    var b_min = me._getTargeMinimum(_b.target);
+                    return a_min - b_min;
+                }
+                return _a.count - _b.count;
+            }
+            else if (_a) {
+                return 1;
+            }
+            else {
+                return -1;
+            }
+        });
+        return res;
     }
     getEvent(id) {
         var me = this;
@@ -134,6 +194,7 @@ export default class HashThread {
 
             this.eventHeads[this.self] = Math.max(this.eventHeads[this.self] || 0, newevent.eventIndex);
             this.eventList.push(newevent);
+            this.sortEvents();
             this.raiseEvent(SENDEVENT, newevent);
         }
     }
@@ -165,6 +226,7 @@ export default class HashThread {
             if (!evnt) {
                 var newevent = hashEvent.stamp(this.self);
                 this.eventList.push(newevent);
+                this.sortEvents();
                 switch (newevent.type) {
                     case HE.ADD_CONTRIBUTOR:
 

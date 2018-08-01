@@ -135,7 +135,7 @@ export default class HashMeta {
             return (maskint ^ t) === 0;
         });
     }
-    static print(meta, size) {
+    static print(meta, size, showIndices) {
         if (!meta || !meta.map || !size) {
             return;
         }
@@ -145,14 +145,15 @@ export default class HashMeta {
         }
         console.log('------------------------')
 
-
-        console.log('------------------------')
-        for (var i = 0; i < size; i++) {
-            console.log(`row ${i} - ${HashMeta.row(meta, i, size).map((t, tt) => {
-                return (i * size) + tt;
-            }).join('  ')}`);
+        if (showIndices) {
+            console.log('------------------------')
+            for (var i = 0; i < size; i++) {
+                console.log(`row ${i} - ${HashMeta.row(meta, i, size).map((t, tt) => {
+                    return (i * size) + tt;
+                }).join('  ')}`);
+            }
+            console.log('------------------------');
         }
-        console.log('------------------------')
     }
 
     static getBitIndexString(bit_index) {

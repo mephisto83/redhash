@@ -15,18 +15,24 @@ export default class HashLine {
         this._self = self;
         this.contributors = contributors || [self];
     }
+    
     static createLine(name, self) {
         return new HashLine(name, self);
     }
+
     initialize() {
         var me = this;
-        if (!me.memberShipLine) {
+        if (!me.membershipThread) {
             me.createThread(MEMBERSHIP_THREAD, me.contributors);
+
         }
-        if(!me.eventThread){
+        if (!me.eventThread) {
             me.createThread(EVENT_THREAD, me.contributors);
         }
+        return this;
     }
+   
+    
     //Creates a new thread.
     createThread(name, contributors) {
         var newthread = HashThread.createThread(this.self, contributors);
@@ -54,7 +60,7 @@ export default class HashLine {
         return this.getThread(MEMBERSHIP_THREAD);
     }
 
-    get eventThread(){
+    get eventThread() {
         return this.getThread(EVENT_THREAD);
     }
 }
