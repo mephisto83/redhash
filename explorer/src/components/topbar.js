@@ -61,7 +61,7 @@ class TopBar extends Component {
                                     <span>Helper Classes</span>
                                 </a>
                             </li> */}
-                            <li>
+                            {/* <li>
                                 <a nothref="javascript:void(0);" className="menu-toggle">
                                     <i className="material-icons">widgets</i>
                                     <span>Widgets</span>
@@ -374,17 +374,17 @@ class TopBar extends Component {
                                     <i className="material-icons col-light-blue">donut_large</i>
                                     <span>Information</span>
                                 </a>
-                            </li>
+                            </li> */}
                         </ul>
                     </div>
                     {/* <!-- #Menu --> */}
                     {/* <!-- Footer --> */}
                     <div className="legal">
                         <div className="copyright">
-                            &copy; 2016 - 2017 <a nothref="javascript:void(0);">AdminBSB - Material Design</a>.
+                            &copy; <a nothref="javascript:void(0);">Red Hash</a>.
                     </div>
                         <div className="version">
-                            <b>Version: </b> 1.0.5
+                            <b>Version: </b>0.0.1
                     </div>
                     </div>
                     {/* <!-- #Footer --> */}

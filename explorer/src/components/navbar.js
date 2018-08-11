@@ -21,10 +21,10 @@ class NavBar extends Component {
                 <div className="collapse navbar-collapse" id="navbar-collapse">
                     <ul className="nav navbar-nav navbar-right">
                         {/* <!-- Call Search --> */}
-                        <li><a className="js-search" data-close="true"><i className="material-icons">search</i></a></li>
+                        {/* <li><a className="js-search" data-close="true"><i className="material-icons">search</i></a></li> */}
                         {/* <!-- #END# Call Search --> */}
                         {/* <!-- Notifications --> */}
-                        <li className="dropdown">
+                        {/* <li className="dropdown">
                             <a className="dropdown-toggle" data-toggle="dropdown" role="button">
                                 <i className="material-icons">notifications</i>
                                 <span className="label-count">7</span>
@@ -130,10 +130,10 @@ class NavBar extends Component {
                                     <a >View All Notifications</a>
                                 </li>
                             </ul>
-                        </li>
+                        </li> */}
                         {/* <!-- #END# Notifications --> */}
                         {/* <!-- Tasks --> */}
-                        <li className="dropdown">
+                        {/* <li className="dropdown">
                             <a className="dropdown-toggle" data-toggle="dropdown" role="button">
                                 <i className="material-icons">flag</i>
                                 <span className="label-count">9</span>
@@ -208,10 +208,10 @@ class NavBar extends Component {
                                     <a >View All Tasks</a>
                                 </li>
                             </ul>
-                        </li>
+                        </li> */}
                         {/* <!-- #END# Tasks --> */}
-                        <li className="pull-right">
-                            <a className="js-right-sidebar" data-close="true"><i className="material-icons">more_vert</i></a></li>
+                        {/* <li className="pull-right">
+                            <a className="js-right-sidebar" data-close="true"><i className="material-icons">more_vert</i></a></li> */}
                     </ul>
                 </div>
             </div>
