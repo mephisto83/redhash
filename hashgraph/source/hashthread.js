@@ -1,9 +1,138 @@
 import * as Util from './util';
 import HashEvent from './hashevent';
 import * as HE from './hashevent';
+export const _documentation = {
+    id: {
+        type: 'string',
+        description: 'The unique id of the thread'
+    },
+    contributors: {
+        type: 'array',
+        description: 'an immutable list of entities that contribute to the thread'
+    },
+    threadId: {
+        type: 'string',
+        description: 'Is a unique id of the thread shared across contributors'
+    },
+    eventIndex: {
+        type: 'number',
+        description: 'A number representing the last event created from this client'
+    },
+    self: {
+        type: 'string',
+        description: 'The clients own thread contributor name/id'
+    },
+    eventHeads: {
+        type: 'object',
+        description: 'A dictionary of the last known events produced by contributors'
+    },
+    eventList: {
+        type: 'array',
+        description: 'A list of events produced by the contributors, this is the thread'
+    },
+    sentEvents: {
+        type: 'object',
+        description: 'A dictionary that will remember which events were sent successfully to other contributors on the thread'
+    },
+    listeners: {
+        type: 'array',
+        description: 'A list of event handlers '
+    },
+    init: {
+        type: 'function',
+        description: 'Initializes the hash thread'
+    },
+    sortEvents: {
+        type: 'function',
+        description: 'Sorts the events into the order that they "occurred"'
+    },
+    copy: {
+        type: 'function',
+        description: 'creates a duplicate thread'
+    },
+    createThread: {
+        type: 'function',
+        description: 'Create a thread'
+    },
+    listen: {
+        type: 'function',
+        description: 'Adds a handler for specific events'
+    },
+    contributorAdd: {
+        type: 'function',
+        description: 'Adds a contributor.'
+    },
+    contributorRemove: {
+        type: 'function',
+        description: 'Removes a contributor'
+    },
+    getCompletedEvents: {
+        type: 'function',
+        description: 'Gets the completed events'
+    },
+    getConsensusEvents: {
+        type: 'function',
+        description: 'Gets events that have reached consensus'
+    },
+    getNonConsensusEvents: {
+        type: 'function',
+        description: 'Gets events that have not reached consensus'
+    },
+    printEvents: {
+        type: 'function',
+        description: 'Prints events to the console.'
+    },
+    getNextPossibleDestinationsFor: {
+        type: 'function',
+        description: 'Gets the next event to send to a contributor'
+    },
+    getEventsToSend: {
+        type: 'function',
+        description: 'gets events to send'
+    },
+    getEvent: {
+        type: 'function',
+        description: 'Gets event by id'
+    },
+    getListEvent: {
+        type: 'function',
+        description: 'Gets list of events'
+    },
+    getContributorsWhoHaventSeenTheMessage: {
+        type: 'function',
+        description: 'Gets contributors which are not known to have seen the message'
+    },
+    getContributorsSeenBy: {
+        type: 'function',
+        description: 'Gets contributors which have been known to have seen message'
+    },
+    sendEvent: {
+        type: 'function',
+        description: 'Send an event'
+    },
+    sentEventSuccessfully: {
+        type: 'function',
+        descriptions: 'Records that messages have been sent successfully'
+    },
+    raiseEvent: {
+        type: 'function',
+        description: 'Raise an event'
+    },
+    receiveEvent: {
+        type: 'function',
+        description: 'Receives an event'
+    },
+    eventSeenByAll: {
+        type: 'function',
+        description: 'Returns true if the event has been seen by all.'
+    },
+    contributorsWhoHaventSeenEvent: {
+        type: 'function',
+        description: 'Returns contributors who havent see the event'
+    }
+}
 //Hash thread is a single hash graph structure, whose contributors are 
 //is an mutable list
-
 export default class HashThread {
     constructor(contribs, self, id) {
         this.threadId = id || Util.GUID();
@@ -80,8 +209,8 @@ export default class HashThread {
     }
 
     //Creates a new instance of a thread.
-    static createThread(self, contributors) {
-        return new HashThread(contributors || [self], self);
+    static createThread(self, contributors, threadid) {
+        return new HashThread(contributors || [self], self, threadid);
     }
 
     //Listene to events
@@ -200,10 +329,15 @@ export default class HashThread {
     }
     sendEventId(evt, person) {
     }
-    sentEventSuccessfully(eventId, to) {
+    sentEventSuccessfully(eventId, to, updateEvent) {
         var evt = this.eventList.find(t => t.id === eventId);
         if (evt instanceof HashEvent) {
             evt.setMetaEvidence(to, this.self, this.contributors);
+            
+            if (updateEvent && updateEvent.id === evt.id) {
+                evt.applyHistory(updateEvent.history);
+            }
+            
             this.eventHeads[this.self] = Math.max(this.eventHeads[this.self], evt.eventIndex);
         }
     }
@@ -229,7 +363,6 @@ export default class HashThread {
                 this.sortEvents();
                 switch (newevent.type) {
                     case HE.ADD_CONTRIBUTOR:
-
                         this.raiseEvent(SYSEVENT, {
                             event: newevent,
                             from: receivedFrom
@@ -254,6 +387,8 @@ export default class HashThread {
                         break;
                 }
             }
+            evnt = this.eventList.find(t => t.id === hashEvent.id);
+            return evnt;
         }
     }
 
@@ -286,7 +421,7 @@ export default class HashThread {
 
     // uniquely identifies the thread.
     get id() {
-        if (this._id) {
+        if (!this._id) {
             this._id = Util.GUID();
         }
         return this._id;

@@ -1,6 +1,6 @@
 import * as util from './util';
-import {IMessageService} from './interfaces';
-export default class TestMessageService extends IMessageService{
+import { IMessageService } from './interfaces';
+export default class TestMessageService extends IMessageService {
     constructor(id) {
         super();
         if (!id) {
@@ -31,12 +31,12 @@ export default class TestMessageService extends IMessageService{
         var me = this;
         let received = [];
         pipeline.filter(x => x.to === (id || me.id)).map(t => {
-            me.received(t.message, t.from)
+            var res = me.received(t.message, t.to, t.from)
             if (fail) {
                 t.error(false);
             }
             else {
-                t.callback(true);
+                t.callback(res || true);
             }
             received.push(t.id);
         });
@@ -66,12 +66,15 @@ export default class TestMessageService extends IMessageService{
         this.messageHandler = handler;
     }
     received(message, to, from) {
+        var res = null;
         if (this.messageHandler) {
-            this.messageHandler(message, to, from);
+            res = this.messageHandler(message, to, from);
         }
         if (this.hg) {
-            this.hg.receiveEvent(message, from);
+            res = res || this.hg.receiveEvent(message, from);
         }
+
+        return res;
     }
 
 }

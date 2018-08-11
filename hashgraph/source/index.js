@@ -35,3 +35,4 @@ export default class HashGraph {
         return this._id;
     }
 }
+

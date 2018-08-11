@@ -15,7 +15,7 @@ class Row extends Component {
 
         var { state, dispatch } = this.props;
         return (
-            <div class="row clearfix">
+            <div className="row clearfix">
                 {this.props.children}
             </div>
         )

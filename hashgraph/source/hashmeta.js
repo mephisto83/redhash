@@ -1,4 +1,62 @@
 let intsize = 32;
+export const _documentation = {
+    create: {
+        type: 'function',
+        description: 'Create hashmeta data'
+    },
+    getSize: {
+        type: 'function',
+        description: 'Gets the size of the array used to represent the N x N array'
+    },
+    copy: {
+        type: 'function',
+        description: 'Creates a copy of the hash meta '
+    },
+    set: {
+        type: 'function',
+        description: 'Sets the (x,y) position of the hashmeta to the value'
+    },
+    setValue: {
+        type: 'function',
+        description: 'Sets the (x,y) position of the hashmeta to the value'
+    },
+    row: {
+        type: 'function',
+        description: 'Gets the nth row of the hashmeta data '
+    },
+    rows: {
+        type: 'function',
+        description: 'Gets the rows from the hashmeta'
+    },
+    column: {
+        type: 'function',
+        description: 'Gets the nth column from the hashmeta '
+    },
+    rowOr: {
+        type: 'function',
+        description: 'Performs an OR operation on two rows'
+    },
+    or: {
+        type: 'function',
+        description: 'Performs an OR operation on each corresponding index in the arrays passed'
+    },
+    getDiagonal: {
+        type: 'function',
+        description: 'Gets the diagonal of the hashmeta matrix'
+    },
+    consensus: {
+        type: 'function',
+        description: 'Returns true if all hashmeta has reaached consensus'
+    },
+    print: {
+        type: 'function',
+        description: 'Prints the hashmeta data to the console'
+    },
+    getBitIndexString: {
+        type: 'function',
+        description : 'Returns a string representing a binary number with the nth bit set to 1.'
+    }
+}
 export default class HashMeta {
     static create(size) {
         var arraylength = Math.ceil(HashMeta.getSize(size));

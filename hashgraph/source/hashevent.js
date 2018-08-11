@@ -1,5 +1,132 @@
 import * as Util from './util';
 import HashMeta from './hashmeta';
+export const _documentation = {
+    contructor: {
+        type: 'constructor',
+        description: 'create a hashevent object'
+    },
+    history: {
+        type: 'object',
+        description: 'a (key,value) pair dictionary, where the key is the id of the contributor and the value is the date/time the event has been seen by the contributors'
+    },
+    time: {
+        type: 'number',
+        description: 'The running average time of a received message',
+    },
+    message: {
+        type: 'any',
+        description: 'The message sent in the hash graph, to be communicated to all contributors'
+    },
+    eventIndex: {
+        type: 'number?',
+        description: 'A number representing the order of events put into on the HashGraph, these numbers are sequential from the producer.'
+    },
+    _type: {
+        type: 'string',
+        description: 'The type of the message, can be system/user defined'
+    },
+    id: {
+        type: 'string',
+        description: 'An unique id for the hashevent'
+    },
+    threadId: {
+        type: 'string',
+        description: 'The thread id which this event belongs'
+    },
+    meta: {
+        type: 'number[]',
+        description: 'This represents a 2d matrix describing who has seen the event'
+    },
+    requestAddContributor: {
+        type: 'function',
+        description: 'Creates an event to request adding a new contributor to the thread'
+    },
+    requestRemoveContributor: {
+        type: 'function',
+        description: 'Create an event to request removing a contributor from the thread'
+    },
+    replyToAddContributor: {
+        type: 'function',
+        description: 'Creates an event to reply to a contributor add request'
+    },
+    copy: {
+        type: 'function',
+        description: 'Create a copy of a HashEvent'
+    },
+    create: {
+        type: 'function',
+        description: 'Create a new Hash Event'
+    },
+    combine: {
+        type: 'function',
+        description: 'Combines an merges 2 events'
+    },
+    updateMeta: {
+        type: 'function',
+        description: 'Updates the meta data'
+    },
+    hasReachedCompleted: {
+        type: 'function',
+        description: 'Returns true is the event has reached the completed state.'
+    },
+    getUncontacted: {
+        type: 'function',
+        description: 'Returns contributors which have not received this event.'
+    },
+    hasReachedConsensus: {
+        type: 'function',
+        description: 'Returns true if the event has reached consensus, all nodes know that all other nodes have received the event'
+    },
+    getContributorsNeedingUpdates: {
+        type: 'function',
+        description: 'Gets list of contributors needing to be updated about the current state of the event'
+    },
+    getUnnotifiedContributors: {
+        type: 'function',
+        description: 'Gets a list of contributors who have not received this event'
+    },
+    getNotifiedContributors: {
+        type: 'function',
+        description: 'Gets a list of contributors which have been notified about the event'
+    },
+    updateTime: {
+        type: 'function',
+        description: 'Recalculates the average time for the known contributors',
+        returns: 'number'
+    },
+    applyHistory: {
+        type: 'function',
+        description: 'Applys the new history to the current version'
+    },
+    getHistory: {
+        type: 'function',
+        description: 'Get the history of the event'
+    },
+    getNow: {
+        type: 'function',
+        description: 'Gets the current time'
+    },
+    stamp: {
+        type: 'function',
+        description: 'Stamps the current event, with the current time the contributor received the event'
+    },
+    print: {
+        type: 'function',
+        description: 'Prints the current hash event'
+    },
+    setupMeta: {
+        type: 'function',
+        description: 'Set up the meta data for the current number of contributors'
+    },
+    setMetaContributorReceived: {
+        type: 'function',
+        description: 'Sets the contributor as having received the event in the meta data on the event.'
+    },
+    setMetaEvidence: {
+        type: 'function',
+        description: 'Sets the meta evidence'
+    }
+}
 export default class HashEvent {
     constructor(_message, type) {
         this.history = {};
@@ -26,7 +153,9 @@ export default class HashEvent {
     static replyToAddContributor(request, reply) {
         return new HashEvent({ id: request.id, reply }, REPLY_TO_ADD_CONTRIBUTOR)
     }
-
+    static documentation() {
+        return _documentation;
+    }
     static copy(hashEvent) {
         if (!hashEvent instanceof HashEvent) {
             throw 'hash event needs to be an object'
@@ -90,7 +219,7 @@ export default class HashEvent {
             this.threadId = threadId;
         return this;
     }
-    print( size) {
+    print(size) {
         HashMeta.print(this.meta, size);
     }
     setupMeta(numberOfContributors) {
@@ -103,9 +232,9 @@ export default class HashEvent {
             throw 'invalid contributor index';
         }
         this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
-        if (index === 0) {
-            HashMeta.print(this.meta);
-        }
+        // if (index === 0) {
+        //     HashMeta.print(this.meta);
+        // }
         return this;
     }
     setMetaEvidence(contributor, self, contributors) {

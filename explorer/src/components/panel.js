@@ -10,14 +10,16 @@ class Panel extends Component {
     render() {
         var { state, dispatch } = this.props;
         return (
-            <div class="col-lg-3 col-md-3 col-sm-6 col-xs-12">
-                <div class="info-box bg-pink hover-expand-effect">
-                    <div class="icon">
-                        <i class="material-icons">playlist_add_check</i>
+            <div className="card">
+                <div className={`header ${this.props.headerCls || 'bg-red'}`}>
+                    <div className="row clearfix">
+                        <div className="col-xs-12 col-sm-6">
+                            <h2>{this.props.title}</h2>
+                        </div>
                     </div>
-                    <div class="content">
-                        {this.props.children}
-                    </div>
+                </div>
+                <div className="body">
+                    {this.props.children}
                 </div>
             </div>
         )
