@@ -20,7 +20,7 @@ class RedHashMetaData extends Component {
     componentDidMount() {
         var me = this;
         var size = me.props.size || 2;
-        var meta = RedHash.HashMeta.create(size);
+        var meta = me.props.meta || RedHash.HashMeta.create(size);
         me.setState({ meta });
     }
     render() {
@@ -28,6 +28,9 @@ class RedHashMetaData extends Component {
         var { state } = me.props;
         var size = me.props.size || 2;
         var meta = me.state.meta || RedHash.HashMeta.create(size);
+        if (me.props.disabled) {
+            meta = me.props.meta;
+        }
         var rawmeta = [...meta];
         var comps = [].interpolate(0, size, (index) => {
             var row = RedHash.HashMeta.row(meta, index, size);

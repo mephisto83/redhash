@@ -10,6 +10,7 @@ import * as Titles from '../titles';
 import { RippleButton } from './hashmetadata';
 import ThreadMessageTimeline from './threadmessagetimeline';
 let { TestMessageService, strarse, HashEvent } = RedHash;
+import HashMetaData from './hashmetadata';
 class ThreadSimulation extends Component {
     constructor(props) {
         super(props)
@@ -129,7 +130,31 @@ class ThreadSimulation extends Component {
         var me = this;
         var { state } = me.props;
         var threads = me.state.threads || [];
+        var res = [];
+        threads.map(thread => {
+            var completed = thread.getCompletedEvents();
+            var consensus = thread.getConsensusEvents();
+            var eventSituation = thread.eventList.map((evt, i) => {
+                return (<div style={{ flex: 1 }} key={`meta-${i}`}>
+                    <HashMetaData disabled={true} meta={evt.meta}  size={threads.length} />
+                </div>)
+            });
+            res.push((
+                <Row key={thread.id}>
+                    <p>{thread.id}</p>
+                    <RippleButton onClick={() => {
+                        me.sendMessage(thread.id);
+                    }} title={Titles.SendMessage} />
+                    <p>
+                        <span>{Titles.Completed}: {completed ? completed.length : null}</span>
+                        <span>{Titles.Consensus}: {consensus ? consensus.length : null}</span>
+                    </p>
+                </Row>));
 
+            res.push((<div key={`${thread.id}-asdf`} style={{ display: 'flex', flexDirection: 'row' }}>
+                {eventSituation}
+            </div>));
+        });
         return (<div>
             <Row>
                 <div className="btn-group btn-group-lg" role="group" aria-label="Large button group">
@@ -142,23 +167,8 @@ class ThreadSimulation extends Component {
             <Row>
                 <ThreadMessageTimeline threadDic={me.state.threadDic} messageTransitions={me.state.messageTransitions} />
             </Row>
-            {
-                threads.map(thread => {
-                    var completed = thread.getCompletedEvents();
-                    var consensus = thread.getConsensusEvents();
-                    return (
-                        <Row key={thread.id}>
-                            <p>{thread.id}</p>
-                            <RippleButton onClick={() => {
-                                me.sendMessage(thread.id);
-                            }} title={Titles.SendMessage} />
-                            <p>
-                                <span>{Titles.Completed}: {completed ? completed.length : null}</span>
-                                <span>{Titles.Consensus}: {consensus ? consensus.length : null}</span>
-                            </p>
-                        </Row>)
-                })
-            }</div>);
+            {res}
+        </div>);
     }
 }
 ThreadSimulation = connect(Util.mapStateToProps, Util.mapDispatchToProps)(ThreadSimulation)
