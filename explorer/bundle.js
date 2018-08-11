@@ -48337,7 +48337,7 @@ var NavBar = function (_Component) {
                         _react2.default.createElement('a', { className: 'bars' }),
                         _react2.default.createElement(
                             'a',
-                            { className: 'navbar-brand', href: 'index.html' },
+                            { className: 'navbar-brand', href: '/' },
                             Titles.MephistoWa
                         )
                     ),

@@ -16,7 +16,7 @@ class NavBar extends Component {
                 <div className="navbar-header">
                     <a className="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse" aria-expanded="false"></a>
                     <a className="bars"></a>
-                    <a className="navbar-brand" href="index.html">{Titles.MephistoWa}</a>
+                    <a className="navbar-brand" href="/">{Titles.MephistoWa}</a>
                 </div>
                 <div className="collapse navbar-collapse" id="navbar-collapse">
                     <ul className="nav navbar-nav navbar-right">
