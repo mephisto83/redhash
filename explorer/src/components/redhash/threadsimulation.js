@@ -54,8 +54,10 @@ class ThreadSimulation extends Component {
                                 me.setState({ update: Date.now() });
                                 me.setState({
                                     messageTransitions: [...me.state.messageTransitions, ...destinations.map(t => {
+                                        RedHash.HashEvent.timeService.now();
                                         return {
                                             from: id,
+                                            time: RedHash.HashEvent.currentTime,
                                             to: t,
                                             id: ets.id
                                         }
@@ -76,6 +78,7 @@ class ThreadSimulation extends Component {
         this.setState({ currentMessage: message });
     }
     componentWillUnmount() {
+        TestMessageService.clear();
         this.setState({
             messageServices: {},
             threadDic: {},
@@ -95,7 +98,7 @@ class ThreadSimulation extends Component {
                 var mess = strarse(message);
                 return threadDic[to].receiveEvent(mess, from);
             });
-            //threadDic[from].sentEventSuccessfully(mess.id, to);
+
             mss[t.id] = ms;
             mss[contrib] = ms;
             threadDic[t.id] = t;
@@ -107,31 +110,15 @@ class ThreadSimulation extends Component {
             threads
         });
         var time = 1;
+        RedHash.HashEvent.currentTime = time;
         RedHash.HashEvent.timeService = {
             now: () => {
                 var _t = time;
                 time += 100;
+                RedHash.HashEvent.currentTime = time;
                 return _t;
             }
         }
-        // threads.map(thread => {
-        //     [].interpolate(0, 3, function (i) {
-        //         var evntToSend = thread.getEventsToSend();
-        //         if (evntToSend && evntToSend.length) {
-        //             var sentEvent = evntToSend[0];
-        //             var destinations = thread.getNextPossibleDestinationsFor(sentEvent.id);
-        //             var tempThread = threads.find(t => t.self === destinations[0]);
-        //             if (tempThread) {
-        //                 tempThread.receiveEvent(strarse(sentEvent), thread.self);
-        //                 thread.sentEventSuccessfully(sentEvent.id, tempThread.self);
-
-        //                 evntToSend = thread.getEventsToSend();
-        //                 thread.printEvents();
-        //                 console.log('-----------------------------');
-        //             }
-        //         }
-        //     });
-        // });
     }
     render() {
         var me = this;
@@ -142,7 +129,7 @@ class ThreadSimulation extends Component {
             var completed = thread.getCompletedEvents();
             var consensus = thread.getConsensusEvents();
             var eventSituation = thread.eventList.map((evt, i) => {
-                return (<div style={{ flex: 1 }} key={`meta-${i}`}>
+                return (<div style={{ flex: 1, flexWrap: 'wrap' }} key={`meta-${i}`}>
                     <HashMetaData diagonalOnly={true} disabled={true} meta={evt.meta} size={threads.length} />
                 </div>)
             });

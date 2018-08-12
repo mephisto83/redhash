@@ -20,10 +20,10 @@ export default class ThreadMessageTimeline extends Component {
         var ok = this;
         this.updateTimeline(true);
     }
-    shouldComponentUpdate() {
-return true;
-        return !this.state.mounted;
-    }
+    //     shouldComponentUpdate() {
+    // return true;
+    //         return !this.state.mounted;
+    //     }
     componentWillReceiveProps() {
         this.updateTimeline()
         this.updateTimeline()
@@ -105,7 +105,7 @@ return true;
                 });
                 if (evt) {
                     var from = evt.history[t.from];
-                    var to = evt.history[t.to];
+                    var to = t.time || evt.history[t.to];
                     var con_1 = keys.indexOf(t.from);
                     var con_2 = keys.indexOf(t.to);
                     return {
@@ -181,56 +181,61 @@ return true;
             .attr('y2', 0)
             .style('stroke', '#F7B801')
             .style('stroke-width', '1');
-
-        var circles = lineholder
-            .selectAll('.event-sent-circles')
-            .data(trans.map(t => {
-                var evt = null;
-                Object.keys(me.props.threadDic).find(g => {
-                    var temp = me.props.threadDic[g];
-                    if (g === t.from) {
-                        var found = temp.eventList.find(y => y.id === t.id);
-                        if (!evt) {
-                            evt = found;
-                        }
+        var c_data = trans.map(t => {
+            var evt = null;
+            Object.keys(me.props.threadDic).find(g => {
+                var temp = me.props.threadDic[g];
+                if (g === t.from) {
+                    var found = temp.eventList.find(y => y.id === t.id);
+                    if (!evt) {
+                        evt = found;
                     }
-                });
-                if (evt) {
-                    var from = evt.history[t.from];
-                    var to = evt.history[t.to];
-                    var con_1 = keys.indexOf(t.from);
-                    var con_2 = keys.indexOf(t.to);
-                    return {
-                        x1: from * historyZoom,
-                        y1: threadGroupPaddingX * con_1,
-                        x2: to * historyZoom,
-                        y2: threadGroupPaddingX * con_2
-                    };
                 }
-                return null;
-            }).filter(t => t && !isNaN(t.x2)));
+            });
+            if (evt) {
+                var from = evt.history[t.from];
+                var to = t.time || evt.history[t.to];
+                var con_1 = keys.indexOf(t.from);
+                var con_2 = keys.indexOf(t.to);
+                return {
+                    x1: from * historyZoom,
+                    y1: threadGroupPaddingX * con_1,
+                    x2: to * historyZoom,
+                    y2: threadGroupPaddingX * con_2
+                };
+            }
+            return null;
+        }).filter(t => t && !isNaN(t.x2))
+        var circles = lineholder
+            .selectAll('.event-sent-circles.x1-y1')
+            .data(c_data);
         circles.exit().remove();
-        var enter_c = circles.enter();
-        enter_c.append('g')
+        circles.enter().append('g')
             .attr('transform', (d) => {
                 return `translate(${(d.x1)},${d.y1})`
             })
-            .attr('class', 'event-sent-circles')
+            .attr('class', 'event-sent-circles x1-y1')
             .append('circle')
             .attr('cx', 0)
             .attr('cy', 0)
             .attr('r', `3px`)
             .attr('fill', 'green')
-        enter_c.append('g')
+      
+            var circles = lineholder
+            .selectAll('.event-sent-circles.x2-y2')
+            .data(c_data);
+        circles.exit().remove();
+        circles.enter().append('g')
             .attr('transform', (d) => {
                 return `translate(${(d.x2)},${d.y2})`
             })
-            .attr('class', 'event-sent-circles')
+            .attr('class', 'event-sent-circles x2-y2')
             .append('circle')
             .attr('cx', 0)
             .attr('cy', 0)
             .attr('r', `3px`)
             .attr('fill', 'red')
+      
         // t_line.append('g')
         //     .attr('transform', 'translate(-100, 0)')
         //     .append('text')

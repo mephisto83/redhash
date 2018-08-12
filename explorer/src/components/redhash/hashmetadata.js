@@ -42,7 +42,7 @@ class RedHashMetaData extends Component {
             var diag = RedHash.HashMeta.getDiagonal(meta, size)
             comps = (<div key={'row-diag'}
                 className="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
-                <div className="btn-group" role="group" aria-label="First group">
+                <div className="btn-group" role="group" aria-label="First group" style={{ flexWrap: 'nowrap' }}>
                     {
                         diag.map((t, i) => {
                             return (<RippleButton title={(i < 10 ? '0' : '') + (i)} key={"ripp-" + i} bgColorCls={t ? 'btn bg-pink' : ''} onClick={() => {
