@@ -1,5 +1,6 @@
 import * as Util from './util';
 import HashMeta from './hashmeta';
+import hashevent from '../../explorer/node_modules/redhashgraph/distribution/hashevent';
 export const _documentation = {
     contructor: {
         type: 'constructor',
@@ -128,30 +129,48 @@ export const _documentation = {
     }
 }
 export default class HashEvent {
-    constructor(_message, type) {
-        this.history = {};
+    constructor(_message, type, contributors) {
+        if (!contributors) {
+            throw 'requires contributors to create hash event';
+        }
+        var me = this;
+        me.history = {};
+        contributors.map(t => {
+            me.history[t] = me.history[t] || null
+        });
         this.time = Infinity;
+        this.contributors = [...contributors];
         this.message = _message;
         this.eventIndex = null;
         this._type = type;
         this.id = Util.GUID();
         this.threadId = null;
-        this.meta = null;
+    }
+    get meta() {
+        var me = this;
+        var size = (this.contributors || []).length;
+        var m = HashMeta.create(size);
+        (this.contributors || []).map((t, i) => {
+            if (me.history[t]) {
+                m = HashMeta.set(m, i, i, 1, size)
+            }
+        });
+        return m;
     }
     get type() {
         return this._type;
     }
 
-    static requestAddContributor(contributor) {
-        return new HashEvent({ contributor }, ADD_CONTRIBUTOR);
+    static requestAddContributor(contributor, contributors) {
+        return new HashEvent({ contributor }, ADD_CONTRIBUTOR, contributors);
     }
 
-    static requestRemoveContributor(contributor) {
-        return new HashEvent({ contributor }, REMOVE_CONTRIBUTOR);
+    static requestRemoveContributor(contributor, contributors) {
+        return new HashEvent({ contributor }, REMOVE_CONTRIBUTOR, contributors);
     }
 
-    static replyToAddContributor(request, reply) {
-        return new HashEvent({ id: request.id, reply }, REPLY_TO_ADD_CONTRIBUTOR)
+    static replyToAddContributor(request, reply, contributors) {
+        return new HashEvent({ id: request.id, reply }, REPLY_TO_ADD_CONTRIBUTOR, contributors)
     }
     static documentation() {
         return _documentation;
@@ -160,24 +179,29 @@ export default class HashEvent {
         if (!hashEvent instanceof HashEvent) {
             throw 'hash event needs to be an object'
         }
-        var duplicate = new HashEvent();
-        duplicate.history = Object.assign(duplicate.history, hashEvent.history);
+        var duplicate = new HashEvent(hashEvent.message, hashEvent.type, [...hashEvent.contributors]);
+        var update = {};
+        Object.keys(hashEvent.history).map(t => {
+            if (hashEvent.history[t])
+                update[t] = hashEvent.history[t];
+        })
+        duplicate.history = Object.assign(duplicate.history, update);
         duplicate.updateTime();
         duplicate.id = hashEvent.id;
         duplicate.threadId = hashEvent.threadId
         duplicate._type = hashEvent._type;
         duplicate.eventIndex = hashEvent.eventIndex;
         duplicate.message = hashEvent.message;
-        duplicate.meta = HashMeta.copy(hashEvent.meta);
+        // duplicate.meta = HashMeta.copy(hashEvent.meta);
 
         return duplicate;
     }
     static create(_obj) {
-        var hashEvent = new HashEvent(_obj.message, _obj.type);
-        hashEvent.applyHistory(_obj.history);
+        var hashEvent = new HashEvent(_obj.message, _obj.type, _obj.contributors);
+        hashEvent.applyHistory(Object.assign({}, _obj.history));
         hashEvent._type = _obj._type;
         hashEvent.eventIndex = _obj.eventIndex;
-        hashEvent.meta = HashMeta.copy(_obj.meta);
+        // hashEvent.meta = HashMeta.copy(_obj.meta);
         hashEvent.threadId = _obj.threadId
         hashEvent.id = _obj.id;
         return hashEvent;
@@ -186,7 +210,7 @@ export default class HashEvent {
         var me = this;
         var hist = Object.keys(me.history);
         var total = hist.reduce((previousValue, currentValue, currentIndex, array) => {
-            return previousValue + me.history[currentValue];
+            return previousValue + (me.history[currentValue] || 0);
         }, 0);
         if (hist.length) {
             this.time = total / hist.length;
@@ -194,7 +218,15 @@ export default class HashEvent {
 
     }
     applyHistory(hist) {
-        this.history = Object.assign({}, hist);
+        var update = {};
+        var me = this;
+        if (hist)
+            this.contributors.map(t => {
+                if (hist[t] && !me.history[t]) {
+                    update[t] = hist[t];
+                }
+            });
+        this.history = Object.assign({}, this.history, update);
         this.updateTime();
     }
     getHistory() {
@@ -207,10 +239,10 @@ export default class HashEvent {
         return Date.now();
     }
     stamp(contributor, index, threadId) {
-        this.history = Object.assign({}, {
+        var update = {
             [contributor]: this.getNow()
-        }, this.history);
-
+        };
+        this.history = Object.assign({}, this.history, update);
         this.updateTime();
 
         if (index)
@@ -223,7 +255,7 @@ export default class HashEvent {
         HashMeta.print(this.meta, size);
     }
     setupMeta(numberOfContributors) {
-        this.meta = HashMeta.create(numberOfContributors);
+        // this.meta = HashMeta.create(numberOfContributors);
         return this;
     }
     setMetaContributorReceived(contributor, contributors) {
@@ -231,7 +263,7 @@ export default class HashEvent {
         if (index === -1) {
             throw 'invalid contributor index';
         }
-        this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
+        // this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
         // if (index === 0) {
         //     HashMeta.print(this.meta);
         // }
@@ -247,20 +279,19 @@ export default class HashEvent {
             throw 'invalid contributor sindex';
         }
 
-        this.meta = HashMeta.set(this.meta, index, sindex, 1, contributors.length);
-        this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
-        this.meta = HashMeta.set(this.meta, sindex, index, 1, contributors.length);
+        // this.meta = HashMeta.set(this.meta, index, sindex, 1, contributors.length);
+        // this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
+        // this.meta = HashMeta.set(this.meta, sindex, index, 1, contributors.length);
 
         HashEvent.updateMeta(this, contributor, contributors, self);
         HashEvent.updateMeta(this, self, contributors, contributor);
         return this;
     }
     static combine(updated, original) {
-        if (updated && original && updated.meta && original.meta)
-            original.meta = HashMeta.or(updated.meta, original.meta);
+        // if (updated && original && updated.meta && original.meta)
+        //     original.meta = HashMeta.or(updated.meta, original.meta);
         for (var i in updated.history) {
-
-            if (!original.history[i]) {
+            if (!original.history[i] && updated.history[i]) {
                 original.history[i] = updated.history[i];
             }
         }
@@ -274,35 +305,30 @@ export default class HashEvent {
             var index = contributors.indexOf(self);
 
             evnt.setMetaContributorReceived(self, contributors);
-            contributors.map((c, i) => {
-                if (i !== index)
-                    evnt.meta = HashMeta.rowOr(evnt.meta, index, i, contributors.length)
-            });
+            // contributors.map((c, i) => {
+            //     if (i !== index)
+            //         evnt.meta = HashMeta.rowOr(evnt.meta, index, i, contributors.length)
+            // });
         }
     }
 
     static hasReachedCompleted(evnt, size) {
-        return HashMeta.consensus(evnt.meta, size);
+        // return HashMeta.consensus(evnt.meta, size);
+        var keys = Object.keys(evnt.history);
+        return evnt.contributors.length === keys.length && keys.all(t => evnt.history[t])
     }
     static getUncontacted(evnt, contributors, self) {
         var index = contributors.indexOf(self);
-        var column = HashMeta.column(evnt.meta, index, contributors.length);
-        return column.map((t, i) => {
-            if (!t) {
-                return contributors[i];
-            }
-            return null;
-        }).filter(t => t);
+        var keys = Object.keys(evnt.history);
+        return keys.filter(t => {
+            return t !== self && evnt.history[t] === null;
+        });
     }
     static hasReachedConsensus(evnt, contributors) {
-        var rows = HashMeta.rows(evnt.meta, contributors.length);
-
-        return rows.all((t, i) => {
-            if (t[i]) {
-                return true;
-            }
-            return false;
-        })
+        var keys = Object.keys(evnt.history);
+        return keys.filter(t => {
+            return evnt.history[t] !== null;
+        });
     }
     static getContributorsNeedingUpdates(evnt, self, contributors) {
         if (evnt && evnt.meta) {
@@ -317,16 +343,16 @@ export default class HashEvent {
     }
 
     static getUnnotifiedContributors(evnt, contributors) {
-        var zeros = HashMeta.getDiagonal(evnt.meta, contributors.length);
-        return zeros.map((t, i) => {
-            return t ? null : contributors[i];
-        }).filter(x => x);
+        var keys = Object.keys(evnt.history);
+        return keys.filter(t => {
+            return evnt.history[t] === null;
+        });
     }
     static getNotifiedContributors(evnt, contributors) {
-        var zeros = HashMeta.getDiagonal(evnt.meta, contributors.length);
-        return zeros.map((t, i) => {
-            return t ? contributors[i] : null;
-        }).filter(x => x);
+        var keys = Object.keys(evnt.history);
+        return keys.filter(t => {
+            return evnt.history[t] !== null;
+        });
     }
 }
 

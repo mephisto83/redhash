@@ -16,15 +16,24 @@ export default class ThreadMessageTimeline extends Component {
     componentDidMount() {
         this.setState({ mounted: true })
     }
+    componentWillUnmount() {
+        var ok = this;
+        this.updateTimeline(true);
+    }
     shouldComponentUpdate() {
+return true;
         return !this.state.mounted;
     }
     componentWillReceiveProps() {
+        this.updateTimeline()
+        this.updateTimeline()
+    }
+    updateTimeline(clear) {
         var me = this;
         var threadGroupPaddingX = 20;
         var contribSubLinePaddingTop = 15;
         var contribSubLinePaddingBottom = 10;
-        var keys = Object.keys(me.props.threadDic || {});
+        var keys = clear ? [] : Object.keys(me.props.threadDic || {});
         var historyZoom = .4;
         var paddingBottom = 10;
         var paddingTop = 10;
@@ -32,9 +41,9 @@ export default class ThreadMessageTimeline extends Component {
         console.log('will received props');
         var events = keys.map(t => {
             var thread = me.props.threadDic[t];
-            thread.eventList
+            return thread.eventList
         });
-        var outerBody = d3.select(me.body).selectAll('.outerBody').data([0]);
+        var outerBody = d3.select(me.body).selectAll('.outerBody').data(clear ? [] : [1]);
         // var bb = me.body.getBBox();
         // var bbx = bb.x;
         // var bby = bb.y;
@@ -59,11 +68,10 @@ export default class ThreadMessageTimeline extends Component {
         // body.exit().remove();
 
         var threadGroup = outerBody.selectAll('.thread');
-        var threads = threadGroup.data(['communication']);
-
+        var threads = threadGroup.data(clear ? [] : ['communication']);
         // // Enter...
-        threads.enter()
-            .append('g')
+        threads.exit().remove();
+        threads.enter().append('g')
             .attr('class', `thread`)
             .attr("transform", (d, index) => {
                 return `translate(${threadGroupPaddingX} ,${index * threadGroupHeight})`
@@ -72,42 +80,47 @@ export default class ThreadMessageTimeline extends Component {
             .text(function (d) { return d; })
             .attr("font-family", "sans-serif")
             .attr("font-size", "12px")
-            .attr("fill", "red");;
-
-        var trans = me.props.messageTransitions;
-        var sentLines = threads
-            .append('g')
-            .attr('class', 'contrib-sent-line')
-            .attr('transform', (d) => {
+            .attr("fill", "red")
+        var lineholder = threads.selectAll('.line-holder').data([1]);
+        lineholder.exit().remove();
+        lineholder.enter().append('g')
+            .attr("transform", (d, index) => {
                 return `translate(${threadGroupPaddingX + 100},${contribSubLinePaddingTop})`
             })
-            .selectAll('.event-sent-instance')
-            .data(keys.map(function (key, index) {
-                var thread = me.props.threadDic[key];
-                return trans.map(t => {
-                    var evt = thread.eventList.find(y => y.id === t.id);
-                    if (evt) {
-                        var from = evt.history[t.from];
-                        var to = evt.history[t.to];
-                        var con_1 = keys.indexOf(t.from);
-                        var con_2 = keys.indexOf(t.to);
-                        return {
-                            x1: from * historyZoom,
-                            y1: threadGroupPaddingX * con_1,
-                            x2: to * historyZoom,
-                            y2: threadGroupPaddingX * con_2
-                        };
-                    }
-                    return null;
-                }).filter(t => t && t.x2 !== undefined);
-            }));
+            .attr('class', 'line-holder');
 
-        sentLines.enter().append('g')
-            .attr('class', 'event-sent-instance')
+        var trans = clear ? [] : me.props.messageTransitions;
+        var sentLines = lineholder
             .selectAll('.event-sent-ii')
-            .data(d => d)
-            .enter()
-            .append('line')
+            .data(trans.map(t => {
+                var evt = null;
+                Object.keys(me.props.threadDic).find(g => {
+                    var temp = me.props.threadDic[g];
+                    if (g === t.from) {
+                        var found = temp.eventList.find(y => y.id === t.id);
+                        if (!evt) {
+                            evt = found;
+                        }
+                    }
+                });
+                if (evt) {
+                    var from = evt.history[t.from];
+                    var to = evt.history[t.to];
+                    var con_1 = keys.indexOf(t.from);
+                    var con_2 = keys.indexOf(t.to);
+                    return {
+                        x1: from * historyZoom,
+                        y1: threadGroupPaddingX * con_1,
+                        x2: to * historyZoom,
+                        y2: threadGroupPaddingX * con_2
+                    };
+                }
+                return null;
+            }).filter(t => t && !isNaN(t.x2)));
+
+        console.log(trans);
+        sentLines.exit().remove();
+        sentLines.enter().append('line')
             .attr('class', 'event-sent-ii')
             .attr('x1', d => {
                 return d.x1;
@@ -122,17 +135,11 @@ export default class ThreadMessageTimeline extends Component {
                 return d.y2;
             })
             .style('stroke', '#1452A7')
-            .style('stroke-width', '.4')
+            .style('stroke-width', '.4');
 
         var contribLine = threads.selectAll('.contrib-sub-line')
-            .data(keys, function (key, index) {
-                var thread = me.props.threadDic[key];
-
-                return {
-                    events: thread.eventList,
-                    contrib: key
-                };
-            });
+            .data([keys[0]].filter(t => t));
+        contribLine.exit().remove();
 
         var contribLineBox = contribLine.enter()
             .append('g')
@@ -140,86 +147,138 @@ export default class ThreadMessageTimeline extends Component {
             .attr("transform", (d, index) => {
                 return `translate(${threadGroupPaddingX},${contribSubLinePaddingTop})`
             });
-        var lines = contribLineBox
-            .selectAll('.event-contrib-instance')
-            .data(keys.map(function (key) {
-                var t = me.props.threadDic[key];
-                t = { events: [...t.eventList], contrib: key };
-                return [...t.events.filter(v => v && v.history && v.history.hasOwnProperty(t.contrib))
-                    .map(v => {
-                        return {
-                            contrib: t.contrib,
-                            event: v
-                        };
-                    })];
-            }));
-
-        var t_line = lines.enter()
-            .selectAll('.lines')
-            .data(d => d)
-            .enter()
+        var contributors = contribLineBox
+            .selectAll('.contributors')
+            .data(keys);
+        contributors.exit().remove();
+        contributors.enter()
             .append('g')
             .attr('transform', (d) => {
-                var con_ = keys.indexOf(d.contrib);
-                return `translate(100, ${threadGroupPaddingX * con_})`
+                var con_ = keys.indexOf(d);
+                return `translate(0, ${threadGroupPaddingX * con_})`
             })
-            .attr('class', 'lines');
-        t_line
-            .append('g')
-            .attr('transform', 'translate(-100, 0)')
+            .attr('class', 'contributors')
             .append('text')
-            .text(function (d) { return d.contrib; })
+            .text(function (d) { return d; })
             .attr("font-family", "sans-serif")
             .attr("font-size", "12px")
-            .attr("fill", "red");;
+            .attr("fill", "blue");;
 
-        t_line.append('line')
-            // x1="0" y1="0" x2="200" y2="200" style="stroke:rgb(255,0,0);stroke-width:2" 
-            .attr('x1', 0)
-            .attr('y1', 0)
-            .attr('x2', 1000)
-            .attr('y2', 0)
-            .style('stroke', '#F7B801')
-            .style('stroke-width', '1')
-
-        var clbText = contribLineBox
-            .selectAll('.event-contrib-instance')
-            .data(keys.map(function (key) {
-                var t = me.props.threadDic[key];
-                t = { events: [...t.eventList], contrib: key };
-                return [...t.events.filter(v => v && v.history && v.history.hasOwnProperty(t.contrib))
-                    .map(v => {
-                        return {
-                            contrib: t.contrib,
-                            event: v
-                        };
-                    })];
-            }));
-
-        clbText.enter()
-            .selectAll('.circle-nodes')
-            .append('g')
-            .attr('transform', 'translate(100,0)')
-            .data(d => d)
-            .enter()
+        var lines = contribLineBox
+            .selectAll('.lines')
+            .data(keys);
+        lines.exit().remove();
+        lines.enter()
             .append('g')
             .attr('transform', (d) => {
-                var con_ = keys.indexOf(d.contrib);
-                return `translate(${(d.event.history[d.contrib] * historyZoom) + 100},${threadGroupPaddingX * con_})`
+                var con_ = keys.indexOf(d);
+                return `translate(100, ${threadGroupPaddingX * con_})`
             })
-            .attr('class', 'circle-nodes')
+            .attr('class', 'lines').append('line')
+            .attr('x1', 0)
+            .attr('y1', 0)
+            .attr('x2', 10000)
+            .attr('y2', 0)
+            .style('stroke', '#F7B801')
+            .style('stroke-width', '1');
+
+        var circles = lineholder
+            .selectAll('.event-sent-circles')
+            .data(trans.map(t => {
+                var evt = null;
+                Object.keys(me.props.threadDic).find(g => {
+                    var temp = me.props.threadDic[g];
+                    if (g === t.from) {
+                        var found = temp.eventList.find(y => y.id === t.id);
+                        if (!evt) {
+                            evt = found;
+                        }
+                    }
+                });
+                if (evt) {
+                    var from = evt.history[t.from];
+                    var to = evt.history[t.to];
+                    var con_1 = keys.indexOf(t.from);
+                    var con_2 = keys.indexOf(t.to);
+                    return {
+                        x1: from * historyZoom,
+                        y1: threadGroupPaddingX * con_1,
+                        x2: to * historyZoom,
+                        y2: threadGroupPaddingX * con_2
+                    };
+                }
+                return null;
+            }).filter(t => t && !isNaN(t.x2)));
+        circles.exit().remove();
+        var enter_c = circles.enter();
+        enter_c.append('g')
+            .attr('transform', (d) => {
+                return `translate(${(d.x1)},${d.y1})`
+            })
+            .attr('class', 'event-sent-circles')
             .append('circle')
             .attr('cx', 0)
             .attr('cy', 0)
             .attr('r', `3px`)
             .attr('fill', 'green')
+        enter_c.append('g')
+            .attr('transform', (d) => {
+                return `translate(${(d.x2)},${d.y2})`
+            })
+            .attr('class', 'event-sent-circles')
+            .append('circle')
+            .attr('cx', 0)
+            .attr('cy', 0)
+            .attr('r', `3px`)
+            .attr('fill', 'red')
+        // t_line.append('g')
+        //     .attr('transform', 'translate(-100, 0)')
+        //     .append('text')
+        //     .text(function (d) { return d.contrib; })
+        //     .attr("font-family", "sans-serif")
+        //     .attr("font-size", "12px")
+        //     .attr("fill", "red");;
+
+        // t_line
+
+        // var clbText = contribLineBox
+        //     .selectAll('.event-contrib-instance')
+        //     .data(keys.map(function (key) {
+        //         var t = me.props.threadDic[key];
+        //         t = { events: [...t.eventList], contrib: key };
+        //         return [...t.events.filter(v => v && v.history && v.history.hasOwnProperty(t.contrib))
+        //             .map(v => {
+        //                 return {
+        //                     contrib: t.contrib,
+        //                     event: v
+        //                 };
+        //             })];
+        //     }));
+
+        // clbText.enter()
+        //     .selectAll('.circle-nodes')
+        //     .append('g')
+        //     .attr('transform', 'translate(100,0)')
+        //     .data(d => d)
+        //     .enter()
+        //     .append('g')
+        //     .attr('transform', (d) => {
+        //         var con_ = keys.indexOf(d.contrib);
+        //         return `translate(${(d.event.history[d.contrib] * historyZoom) + 100},${threadGroupPaddingX * con_})`
+        //     })
+        //     .attr('class', 'circle-nodes')
+        //     .append('circle')
+        //     .attr('cx', 0)
+        //     .attr('cy', 0)
+        //     .attr('r', `3px`)
+        //     .attr('fill', 'green')
 
         // Exit...
-        sentLines.exit().remove()
-        lines.exit().remove();
-        clbText.exit().remove();
-        contribLine.exit().remove();
-        threads.exit().remove();
+        //
+        // lines.exit().remove();
+        // clbText.exit().remove();
+
+
     }
     getEventInfo() {
         var me = this;

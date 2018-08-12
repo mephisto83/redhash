@@ -86,7 +86,6 @@ function requestContributorRemove(state, action) {
         case MA.INITIALIZE_STATE:
             let { name } = action;
             if (name && state.contributors.find(t => t === name)) {
-                console.log(action);
                 return {
                     ...state,
                     state: action.type,
@@ -134,8 +133,6 @@ function removeContributor(state, action) {
 function rejectContributorRemove(state, action) {
     switch (state.state) {
         case MA.REQUEST_CONTRIBUTOR_REMOVE:
-            console.log(state);
-            console.log(action);
             if (state.contributorRequest && state.contributorRequest.name === action.name && action.from !== state.contributorRequest.name) {
                 var contributorElection = [...(state.contributorElection || []).filter(t => {
                     return t.from !== action.from

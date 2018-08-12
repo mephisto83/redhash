@@ -10,7 +10,7 @@ import * as Titles from '../titles';
 class RedHashEvent extends Component {
     constructor(props) {
         super(props)
-        var hashEvent = new RedHash.HashEvent('a special message', 'message-type');
+        var hashEvent = new RedHash.HashEvent('a special message', 'message-type', ['self']);
         this.state = {
             hashEvent
         }

@@ -70,7 +70,7 @@ var self = 'self';
 describe('HashEvent', function () {
   describe('hashevent instance', function () {
     it('should create a hashevent instance', function () {
-      var hashevent = new HashEvent('message');
+      var hashevent = new HashEvent('message', null, []);
       assert.ok(hashevent);
       assert.ok(hashevent.id);
       assert.ok(hashevent.history);

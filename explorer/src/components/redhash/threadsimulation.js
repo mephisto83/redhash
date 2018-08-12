@@ -72,8 +72,15 @@ class ThreadSimulation extends Component {
     sendMessage(from) {
         var message = this.state.currentMessage + 1;
         var thread = this.state.threadDic[from];
-        thread.sendEvent(new HashEvent(`${message}`));
+        thread.sendEvent(new HashEvent(`${message}`, null, this.state.contributors));
         this.setState({ currentMessage: message });
+    }
+    componentWillUnmount() {
+        this.setState({
+            messageServices: {},
+            threadDic: {},
+            messageTransitions: []
+        })
     }
     componentDidMount() {
         var me = this;
@@ -99,7 +106,7 @@ class ThreadSimulation extends Component {
             messageServices: mss,
             threads
         });
-        var time = 0;
+        var time = 1;
         RedHash.HashEvent.timeService = {
             now: () => {
                 var _t = time;
@@ -136,7 +143,7 @@ class ThreadSimulation extends Component {
             var consensus = thread.getConsensusEvents();
             var eventSituation = thread.eventList.map((evt, i) => {
                 return (<div style={{ flex: 1 }} key={`meta-${i}`}>
-                    <HashMetaData disabled={true} meta={evt.meta}  size={threads.length} />
+                    <HashMetaData diagonalOnly={true} disabled={true} meta={evt.meta} size={threads.length} />
                 </div>)
             });
             res.push((

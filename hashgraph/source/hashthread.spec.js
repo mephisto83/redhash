@@ -42,11 +42,12 @@ describe('HashThread', function () {
 
         it('sent hash events should add the contributor to the history and the time it was sent', () => {
             var hashthread = HashThread.createThread(self);
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, hashthread.contributors);
             hashthread.sendEvent(hashevent);
             assert.ok(hashthread.eventIndex === 1)
             assert.ok(hashthread.eventList.length === 1, 'the list should be 1 event long');
             var evt = hashthread.eventList[0];
+            console.log(evt.history)
             assert.ok(evt.history[self]);
         });
 
@@ -57,7 +58,7 @@ describe('HashThread', function () {
             hashthread.listen(HashThreadConst.SENDEVENT, () => {
                 caught = true;
             });
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, [self]);
             hashthread.sendEvent(hashevent);
             assert.ok(caught);
         });
@@ -69,7 +70,7 @@ describe('HashThread', function () {
             hashthread.listen(HashThreadConst.SENDEVENT, () => {
                 caught = true;
             });
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, [self]);
             hashthread.sendEvent(hashevent);
             assert.ok(hashthread.eventHeads);
             assert.ok(hashthread.eventHeads[self]);
@@ -84,7 +85,7 @@ describe('HashThread', function () {
             hashthread.listen(HashThreadConst.RECEIVEEVENT, () => {
                 caught = true;
             });
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, [self]);
             hashevent.stamp(self);
             hashthread.receiveEvent(hashevent, self);
             assert.ok(caught);
@@ -98,7 +99,7 @@ describe('HashThread', function () {
             hashthread.listen(HashThreadConst.RECEIVEEVENT, () => {
                 caught = true;
             });
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, [self]);
             hashevent.stamp(self);
             hashthread.receiveEvent(hashevent, self);
             hashthread.receiveEvent(strarse(hashevent), self);
@@ -116,7 +117,7 @@ describe('HashThread', function () {
         it('can detect if a hash event has been seen by all contributors', () => {
             var hashthread = HashThread.createThread(self);
             hashthread.contributorAdd(person);
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, [self]);
             hashevent.stamp(self);
             hashthread.receiveEvent(hashevent, self);
             assert.ok(!hashthread.eventSeenByAll(hashevent), 'event should have not been seen by all ');
@@ -125,14 +126,14 @@ describe('HashThread', function () {
         it('can say who hasnt see the event', () => {
             var hashthread = HashThread.createThread(self);
             hashthread.contributorAdd(person);
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, [self]);
             hashevent.stamp(self);
             hashthread.receiveEvent(hashevent, person);
             assert.ok(hashthread.contributorsWhoHaventSeenEvent(hashevent)[0] === person, 'didnt say person');
         });
 
         it('can duplicate the event', () => {
-            var hashevent = new HashEvent('message');
+            var hashevent = new HashEvent('message', null, [self]);
             hashevent.stamp(self);
             var duplicate = HashEvent.copy(hashevent);
             assert.ok(duplicate);
@@ -153,15 +154,15 @@ describe('HashThread', function () {
             hashthread.listen(HashThreadConst.SYSEVENT, (evt) => {
                 gotevent = evt;
             });
-            hashthread.receiveEvent(HashEvent.requestAddContributor(person), self);
+            hashthread.receiveEvent(HashEvent.requestAddContributor(person, [self]), self);
             assert.ok(gotevent);
         });
 
         it('can reply to an add contributor request', () => {
             var hashthread = HashThread.createThread(self);
-            var request = HashEvent.requestAddContributor(person);
+            var request = HashEvent.requestAddContributor(person, [self]);
             hashthread.sendEvent(request);
-            hashthread.sendEvent(HashEvent.replyToAddContributor(request, true))
+            hashthread.sendEvent(HashEvent.replyToAddContributor(request, true, [self]))
             assert.ok(hashthread.eventList.length === 2);
             var event = hashthread.eventList[0];
             assert.ok(event);
@@ -171,9 +172,9 @@ describe('HashThread', function () {
 
         function setup() {
             var hashthread = HashThread.createThread(self);
-            var request = HashEvent.requestAddContributor(person);
+            var request = HashEvent.requestAddContributor(person, [self]);
             hashthread.sendEvent(request);
-            hashthread.sendEvent(HashEvent.replyToAddContributor(request, true))
+            hashthread.sendEvent(HashEvent.replyToAddContributor(request, true, [self]))
             assert.ok(hashthread.eventList.length === 2);
             var event = hashthread.eventList[0];
             assert.ok(event);
@@ -196,7 +197,7 @@ describe('HashThread', function () {
 
         it('know when not everyone has seen the message', () => {
             var hashthread = setupTwoContributors();
-            var request = new HashEvent('message', 'sometype');
+            var request = new HashEvent('message', 'sometype', [...hashthread.contributors]);
             hashthread.sendEvent(request);
             var evnts = hashthread.getCompletedEvents();
             assert.ok(evnts);
@@ -205,7 +206,7 @@ describe('HashThread', function () {
 
         it('know when not everyone has seen the message', () => {
             var hashthread = setupTwoContributors();
-            var request = new HashEvent('message', 'sometype');
+            var request = new HashEvent('message', 'sometype', [...hashthread.contributors]);
             hashthread.sendEvent(request);
             var contribs = hashthread.getContributorsWhoHaventSeenTheMessage(hashthread.getListEvent(0));
             assert.ok(contribs);
@@ -215,7 +216,7 @@ describe('HashThread', function () {
 
         it('should get contributors who have seen the message', () => {
             var hashthread = setupTwoContributors();
-            var request = new HashEvent('message', 'sometype');
+            var request = new HashEvent('message', 'sometype', [...hashthread.contributors]);
             hashthread.sendEvent(request);
             var contribs = hashthread.getContributorsSeenBy(hashthread.getListEvent(0));
             assert.ok(contribs);
@@ -250,7 +251,7 @@ describe('HashThread', function () {
             })
         }
 
-        it('s1 sends a message, p1 will get and reply, meta data will be updated', () => {
+        it.only('s1 sends a message, p1 will get and reply, meta data will be updated', () => {
             var { s1, p1 } = setupTwoCommunicatingContributors();
             assert.ok(s1);
             assert.ok(p1);
@@ -258,21 +259,23 @@ describe('HashThread', function () {
             s1.listen(HashThreadConst.SENDEVENT, evt => {
                 sentEvent = evt;
             })
-            s1.sendEvent(new HashEvent("asndfasdf"));
-            s1.sentEventSuccessfully(sentEvent.id, person);
+            s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
+            p1.receiveEvent(strarse(sentEvent), self);
+            var processedEvent = p1.eventList[0];
+            console.log(processedEvent);
+            console.log(sentEvent);
+            s1.sentEventSuccessfully(sentEvent.id, person, processedEvent);
             assert.ok(sentEvent);
             assert.ok(sentEvent.meta);
-
-            assert.ok(sentEvent.meta[0] === 15, `'meta data should be 15 ' ${sentEvent.meta[0]}`);
-            p1.receiveEvent(strarse(sentEvent), self);
+            HashMeta.print(sentEvent.meta, 2)
+            assert.ok(sentEvent.meta[0] === 9, `'meta data should be 9 ' ${sentEvent.meta[0]}`);
             // Sent successfully
-            s1.sentEventSuccessfully(s1.eventList[0].id, person);
+            s1.sentEventSuccessfully(s1.eventList[0].id, person, processedEvent);
 
-            var processedEvent = p1.eventList[0];
             assert.ok(processedEvent);
             assert.ok(processedEvent.meta);
-            assert.ok(processedEvent.meta[0] === 15, `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
-            assert.ok(sentEvent.meta[0] === 15, `'meta data should be 15 ' ${sentEvent.meta[0]}`);
+            assert.ok(processedEvent.meta[0] === 9, `'processed event meta data shouldnt be ' ${sentEvent.meta[0]}`);
+            assert.ok(sentEvent.meta[0] === 9, `'sendt meta data should be 9 ' ${sentEvent.meta[0]}`);
 
             assert.ok(s1.eventHeads);
             assert.ok(s1.eventHeads[self]);
@@ -301,7 +304,7 @@ describe('HashThread', function () {
                 sentEvent = evt;
             });
 
-            s1.sendEvent(new HashEvent("asndfasdf"));
+            s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
             HashMeta.print(s1.eventList[0].meta, 3);
             s1.sentEventSuccessfully(sentEvent.id, person);
             HashMeta.print(s1.eventList[0].meta, 3);
@@ -370,8 +373,8 @@ describe('HashThread', function () {
             threads[0].listen(HashThreadConst.SENDEVENT, evt => {
                 sentEvent = evt;
             });
-
-            threads[0].sendEvent(new HashEvent("asndfasdf"));
+            console.log(threads[0].contributors);
+            threads[0].sendEvent(new HashEvent("asndfasdf", null, threads[0].contributors));
             HashMeta.print(threads[0].eventList[0].meta, _thread_count_);
             threads[1].receiveEvent(strarse(sentEvent), threads[0].self);
             threads[0].sentEventSuccessfully(threads[0].eventList[0].id, threads[1].self);
@@ -389,7 +392,7 @@ describe('HashThread', function () {
                 sentEvent = evt;
             });
             //Puts event into the "system"
-            threads[0].sendEvent(new HashEvent("asndfasdf"));
+            threads[0].sendEvent(new HashEvent("asndfasdf", null, threads[0].contributors));
 
             var destinations = threads[0].getNextPossibleDestinationsFor(sentEvent.id);
             var count = 0
@@ -414,7 +417,7 @@ describe('HashThread', function () {
         });
 
         describe('event timing', () => {
-            it.only('get event to send', () => {
+            it('get event to send', () => {
                 var _thread_count_ = 4;
                 var threads = setupThreads(_thread_count_);
                 var time = 100;
@@ -427,7 +430,7 @@ describe('HashThread', function () {
                 }
                 threads.map(thread => {
                     [].interpolate(0, 3, function (i) {
-                        thread.sendEvent(new HashEvent(`${i}`));
+                        thread.sendEvent(new HashEvent(`${i}`, null, [...threads[0].contributors]));
                     });
                 });
 
@@ -468,8 +471,8 @@ describe('HashThread', function () {
                         return _t;
                     }
                 }
-                threads[0].sendEvent(new HashEvent("asndfasdf"));
-                threads[1].sendEvent(new HashEvent("asndfasdf"));
+                threads[0].sendEvent(new HashEvent("asndfasdf", null, threads[0].contributors));
+                threads[1].sendEvent(new HashEvent("asndfasdf", null, threads[0].contributors));
 
                 var destinations = threads[0].getNextPossibleDestinationsFor(sentEvent.id);
                 var count = 0;

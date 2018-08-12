@@ -22,6 +22,11 @@ class RedHashMetaData extends Component {
         var size = me.props.size || 2;
         var meta = me.props.meta || RedHash.HashMeta.create(size);
         me.setState({ meta });
+        me.mounted = true;
+    }
+    componentWillUnmount() {
+        var me = this;
+        me.mounted = false;
     }
     render() {
         var me = this;
@@ -32,27 +37,46 @@ class RedHashMetaData extends Component {
             meta = me.props.meta;
         }
         var rawmeta = [...meta];
-        var comps = [].interpolate(0, size, (index) => {
-            var row = RedHash.HashMeta.row(meta, index, size);
-            return (
-                <div className="demo-button-toolbar clearfix">
-                    <div key={'row' + index}
-                        className="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
-                        <div className="btn-group" role="group" aria-label="First group">
-                            {
-                                row.map((t, i) => {
-                                    return (<RippleButton title={(index * size + i < 10 ? '0' : '') + (index * size + i)} key={"ripp-" + i} bgColorCls={t ? 'btn bg-pink' : ''} onClick={() => {
-                                        console.log('clicked');
-                                        var newmeta = RedHash.HashMeta.setValue(me.state.meta, i, index, t === 0 ? 1 : 0, size);
-                                        me.setState({ meta: newmeta });
-                                    }} />);
-                                })
-                            }
+        var comps = [];
+        if (me.props.diagonalOnly) {
+            var diag = RedHash.HashMeta.getDiagonal(meta, size)
+            comps = (<div key={'row-diag'}
+                className="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+                <div className="btn-group" role="group" aria-label="First group">
+                    {
+                        diag.map((t, i) => {
+                            return (<RippleButton title={(i < 10 ? '0' : '') + (i)} key={"ripp-" + i} bgColorCls={t ? 'btn bg-pink' : ''} onClick={() => {
+                                console.log('clicked');
+                                var newmeta = RedHash.HashMeta.setValue(me.state.meta, i, i, t === 0 ? 1 : 0, size);
+                                me.setState({ meta: newmeta });
+                            }} />);
+                        })
+                    }
+                </div>
+            </div>)
+        }
+        else {
+            comps = [].interpolate(0, size, (index) => {
+                var row = RedHash.HashMeta.row(meta, index, size);
+                return (
+                    <div className="demo-button-toolbar clearfix">
+                        <div key={'row' + index}
+                            className="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+                            <div className="btn-group" role="group" aria-label="First group">
+                                {
+                                    row.map((t, i) => {
+                                        return (<RippleButton title={(index * size + i < 10 ? '0' : '') + (index * size + i)} key={"ripp-" + i} bgColorCls={t ? 'btn bg-pink' : ''} onClick={() => {
+                                            console.log('clicked');
+                                            var newmeta = RedHash.HashMeta.setValue(me.state.meta, i, index, t === 0 ? 1 : 0, size);
+                                            me.setState({ meta: newmeta });
+                                        }} />);
+                                    })
+                                }
+                            </div>
                         </div>
-                    </div>
-                </div>)
-        });
-
+                    </div>)
+            });
+        }
         return (
             <div>
                 {this.props.title ? <p>{this.props.title}</p> : null}
@@ -125,15 +149,19 @@ export class RippleButton extends Component {
                     rippleCls: 'waves-notransition'
                 });
                 setTimeout(() => {
-                    me.setState({
-                        rippleCls: '',
-                        rippleAttr: Object.assign({}, me.state.rippleAttr,
-                            Object.assign({ style: me.state.rippleAttr.style }),
-                            { style: ripp2 })
-                    });
+                    if (me.mounted) {
+                        me.setState({
+                            rippleCls: '',
+                            rippleAttr: Object.assign({}, me.state.rippleAttr,
+                                Object.assign({ style: me.state.rippleAttr.style }),
+                                { style: ripp2 })
+                        });
+                    }
                 }, 100)
                 setTimeout(() => {
-                    me.setState({ rippleAttr: {}, ripple: false })
+                    if (me.mounted) {
+                        me.setState({ rippleAttr: {}, ripple: false });
+                    }
                 }, 2000);
                 if (me.props.onClick) {
                     me.props.onClick();
