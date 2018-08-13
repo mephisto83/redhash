@@ -43,26 +43,24 @@ class ThreadSimulation extends Component {
                         if (destinations.length) {
                             var res = [...destinations].map(dest => {
                                 var ms = me.state.messageServices[dest];
+                                var ct = RedHash.HashEvent.currentTime;
                                 return ms.send(ets, dest, id).then(res => {
                                     thread.sentEventSuccessfully(ets.id, dest, res);
-
+                                    me.setState({
+                                        messageTransitions: [...me.state.messageTransitions, {
+                                            from: thread.self,
+                                            time: ct + 50,
+                                            to: dest,
+                                            id: ets.id
+                                        }]
+                                    });
                                 });
                             });
                             Promise.all(res).catch(e => {
                                 me.setState({ messagefailure: e })
                             }).then(() => {
                                 me.setState({ update: Date.now() });
-                                me.setState({
-                                    messageTransitions: [...me.state.messageTransitions, ...destinations.map(t => {
-                                        RedHash.HashEvent.timeService.now();
-                                        return {
-                                            from: id,
-                                            time: RedHash.HashEvent.currentTime,
-                                            to: t,
-                                            id: ets.id
-                                        }
-                                    })]
-                                });
+
                             });
                         }
                     });
@@ -114,8 +112,8 @@ class ThreadSimulation extends Component {
         RedHash.HashEvent.timeService = {
             now: () => {
                 var _t = time;
-                time += 100;
                 RedHash.HashEvent.currentTime = time;
+                time += 100;
                 return _t;
             }
         }
