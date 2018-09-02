@@ -209,11 +209,15 @@ export default class HashEvent {
     updateTime() {
         var me = this;
         var hist = Object.keys(me.history);
+        var length = 0;
         var total = hist.reduce((previousValue, currentValue, currentIndex, array) => {
+            if ((me.history[currentValue])) {
+                length++;
+            }
             return previousValue + (me.history[currentValue] || 0);
         }, 0);
-        if (hist.length) {
-            this.time = total / hist.length;
+        if (length) {
+            this.time = total / length;
         }
 
     }

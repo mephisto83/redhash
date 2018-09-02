@@ -2,9 +2,9 @@ import HashThread from './hashthread';
 import * as Util from './util';
 import * as HThread from './hashthread';
 import HashEvent from './hashevent';
-import { MEMBERSHIP } from './eventtypes';
-const MEMBERSHIP_THREAD = 'MEMBERSHIP_THREAD';
-const EVENT_THREAD = 'EVENT_THREAD';
+import ET from './eventtypes';
+export const MEMBERSHIP_THREAD = 'MEMBERSHIP_THREAD';
+export const EVENT_THREAD = 'EVENT_THREAD';
 export default class HashLine {
     constructor(name, self, contributors) {
         if (!name) {
@@ -26,9 +26,21 @@ export default class HashLine {
 
         this.stateMatchines[thread] = stateMachineConstructor();
     }
+    processState(threadId) {
+        if (!threadId) {
+            throw 'no thread id ';
+        }
+        var me = this;
+        var thread = me.getThread(threadId);
+        var sm = this.stateMatchines[threadId];
+        var events = thread.getEvents() || [];
+        var newstate = sm.action([...events.map(t => t.message)]);
+
+        return newstate;
+    }
     sendEvent(msg, type) {
         var me = this;
-        if (me.membershipThread && type === MEMBERSHIP) {
+        if (me.membershipThread && type === ET.MEMBERSHIP) {
             me.membershipThread.sendEvent(new HashEvent(msg, type, this.contributors));
         }
         else if (me.eventThread) {
@@ -38,9 +50,11 @@ export default class HashLine {
     receiveEvent(msg, from) {
         var me = this;
         var reply = null;
+
         var hashmsg = HashEvent.create(msg);
-        switch (msg.type) {
-            case MEMBERSHIP:
+
+        switch (msg._type) {
+            case ET.MEMBERSHIP:
                 reply = me.membershipThread.receiveEvent(hashmsg, from);
                 break;
             default:
@@ -71,7 +85,7 @@ export default class HashLine {
     getNextPossibleDestinationsFor(evt) {
         var thread = null;
         switch (evt.type) {
-            case MEMBERSHIP:
+            case ET.MEMBERSHIP:
                 thread = this.membershipThread;
                 break;
             default:
@@ -112,7 +126,7 @@ export default class HashLine {
             me.raiseEvent(HThread.SENDEVENT, event);
         });
 
-        newthread.listen(HThread.RECEIVEEVENT, evt=>{
+        newthread.listen(HThread.RECEIVEEVENT, evt => {
             me.raiseEvent(HThread.RECEIVEEVENT, evt);
         });
 

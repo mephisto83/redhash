@@ -161,7 +161,7 @@ export default class HashThread {
     }
     sortEvents() {
         this.eventList = [...this.eventList.sort((a, b) => {
-            return b.time - a.time;
+            return a.time - b.time;
         })]
     }
     handleUpdateEvent(evt) {

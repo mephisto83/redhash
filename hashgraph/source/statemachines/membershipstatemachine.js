@@ -13,6 +13,7 @@ export default class MembershipStateMachine {
     action(actions) {
         var tempstate = { ...this.state };
         actions.map(action => {
+            console.log(action.type);
             switch (action.type) {
                 case MA.INITIALIZE_STATE:
                     tempstate = initializeState(tempstate, action);
@@ -78,6 +79,9 @@ function requestContributorAdd(state, action) {
                 };
             }
             break;
+        default:
+        console.log('[incorrect state]')
+        break;
     }
     return { ...state };
 }
