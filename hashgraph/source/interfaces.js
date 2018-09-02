@@ -12,4 +12,7 @@ export class IMessageService {
     received(message, to, from) {
         throw 'NOT IMPLEMENTED';
     }
+    sendMessagesFor(to) {
+        throw 'NOT IMPLEMENTED';
+    }
 }

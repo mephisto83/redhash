@@ -161,7 +161,7 @@ export default class HashThread {
     }
     sortEvents() {
         this.eventList = [...this.eventList.sort((a, b) => {
-            return a.time - b.time;
+            return b.time - a.time;
         })]
     }
     handleUpdateEvent(evt) {
@@ -264,6 +264,7 @@ export default class HashThread {
     getNextPossibleDestinationsFor(evntId) {
         var me = this;
         var evnt = me.getEvent(evntId);
+        console.log(evntId);
         return HashEvent.getUncontacted(evnt, me.contributors, me.self);
     }
     _getTargeMinimum(dic) {
@@ -302,6 +303,9 @@ export default class HashThread {
         var me = this;
         return me.eventList.find(t => t.id === id);
     }
+    getEvents() {
+        return [...this.eventList];
+    }
     getListEvent(index) {
         var me = this;
         return me.eventList[index];
@@ -317,14 +321,13 @@ export default class HashThread {
         if (hashEvent instanceof HashEvent) {
             this.eventIndex++;
             var newevent = hashEvent
-                .stamp(this.self, this.eventIndex, this.threadId)
-                .setupMeta(this.contributors.length)
-                .setMetaContributorReceived(this.self, this.contributors);
+                .stamp(this.self, this.eventIndex, this.threadId);
 
             this.eventHeads[this.self] = Math.max(this.eventHeads[this.self] || 0, newevent.eventIndex);
             this.eventList.push(newevent);
             this.sortEvents();
             this.raiseEvent(SENDEVENT, newevent);
+            return newevent;
         }
     }
     sendEventId(evt, person) {
@@ -333,17 +336,24 @@ export default class HashThread {
         var evt = this.eventList.find(t => t.id === eventId);
         if (evt instanceof HashEvent) {
             evt.setMetaEvidence(to, this.self, this.contributors);
-            
+
             if (updateEvent && updateEvent.id === evt.id) {
                 evt.applyHistory(updateEvent.history);
             }
-            
+            else {
+                throw 'not applying history';
+            }
+
             this.eventHeads[this.self] = Math.max(this.eventHeads[this.self], evt.eventIndex);
+        }
+        else {
+            throw 'not a hash event'
         }
     }
 
     // Raise Event 
     raiseEvent(evt, args) {
+        console.log('-------- raising event -------------')
         this.listeners.filter(t => t._onEvent === evt).map(t => {
             t.handler(args);
         });
@@ -369,6 +379,7 @@ export default class HashThread {
                         });
                         break;
                     default:
+                        
                         this.raiseEvent(RECEIVEEVENT, {
                             event: newevent,
                             from: receivedFrom

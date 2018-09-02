@@ -219,9 +219,9 @@ describe('Messaging Harness', function () {
         assert(sentmessagesuccessfully, 'failed to send message');
         done();
       });
-      tms2.onmessage(function (msg, from, to) {
+      tms2.onmessage(function (msg, to, from) {
         called = true;
-        assert(from === '1', 'message came from wrong person');
+        assert(from === '1', `'message came from wrong person' ${from}`);
       });
       TestMessageService.globalStep();
       assert(called, 'tm2 didnt receive a message');
@@ -236,12 +236,12 @@ describe('Messaging Harness', function () {
       let notcalled = false;
 
       // Receive message setups
-      tms2.onmessage(function (msg, from, to) {
+      tms2.onmessage(function (msg, to, from) {
         called = true;
         assert(from === '1', 'message came from wrong person');
       });
 
-      tms.onmessage(function (msg, from, to) {
+      tms.onmessage(function (msg, to, from) {
         called2 = true;
         assert(from === '2', 'message came from wrong person');
       });

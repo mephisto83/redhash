@@ -1,4 +1,8 @@
 import HashThread from './hashthread';
+import * as Util from './util';
+import * as HThread from './hashthread';
+import HashEvent from './hashevent';
+import { MEMBERSHIP } from './eventtypes';
 const MEMBERSHIP_THREAD = 'MEMBERSHIP_THREAD';
 const EVENT_THREAD = 'EVENT_THREAD';
 export default class HashLine {
@@ -13,39 +17,128 @@ export default class HashLine {
         this.threads = {};
         this.name = name;
         this._self = self;
+        this.listeners = [];
+        this.stateMatchines = {};
         this.contributors = contributors || [self];
     }
-    
+    assignMachine(stateMachineConstructor, thread) {
+        thread = thread || MEMBERSHIP_THREAD;
+
+        this.stateMatchines[thread] = stateMachineConstructor();
+    }
+    sendEvent(msg, type) {
+        var me = this;
+        if (me.membershipThread && type === MEMBERSHIP) {
+            me.membershipThread.sendEvent(new HashEvent(msg, type, this.contributors));
+        }
+        else if (me.eventThread) {
+            me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors));
+        }
+    }
+    receiveEvent(msg, from) {
+        var me = this;
+        var reply = null;
+        var hashmsg = HashEvent.create(msg);
+        switch (msg.type) {
+            case MEMBERSHIP:
+                reply = me.membershipThread.receiveEvent(hashmsg, from);
+                break;
+            default:
+                reply = me.eventThread.receiveEvent(hashmsg, from);
+                break;
+        }
+        return reply;
+    }
+    getEventsToSend() {
+        var me = this;
+        var mt = me.membershipThread;
+        var et = me.eventThread;
+        var res = [];
+        if (mt) {
+            res = [...res, ...mt.getEventsToSend()];
+        }
+
+        if (et) {
+            res = [...res, ...et.getEventsToSend()];
+        }
+
+        return res;
+    }
+    getMessageToSendTo(destination) {
+        var me = this;
+        return me.getEventsToSend().filter(t => me.getNextPossibleDestinationsFor(t).indexOf(destination) !== -1);
+    }
+    getNextPossibleDestinationsFor(evt) {
+        var thread = null;
+        switch (evt.type) {
+            case MEMBERSHIP:
+                thread = this.membershipThread;
+                break;
+            default:
+                thread = this.eventThread;
+                break;
+        }
+        if (thread)
+            return thread.getNextPossibleDestinationsFor(evt.id);
+        return [];
+    }
+
     static createLine(name, self) {
         return new HashLine(name, self);
     }
 
-    initialize() {
+    initialize(threadid) {
         var me = this;
         if (!me.membershipThread) {
-            me.createThread(MEMBERSHIP_THREAD, me.contributors);
+            me.createThread(MEMBERSHIP_THREAD, me.contributors, threadid);
 
         }
         if (!me.eventThread) {
-            me.createThread(EVENT_THREAD, me.contributors);
+            me.createThread(EVENT_THREAD, me.contributors, threadid);
         }
         return this;
     }
-   
-    
+
+
     //Creates a new thread.
-    createThread(name, contributors) {
-        var newthread = HashThread.createThread(this.self, contributors);
+    createThread(name, contributors, threadid) {
+        var me = this;
+        var newthread = HashThread.createThread(this.self, contributors, threadid);
         newthread.name = name;
         this.threads[name] = {
             thread: newthread
         };
+        newthread.listen(HThread.SENDEVENT, (event) => {
+            me.raiseEvent(HThread.SENDEVENT, event);
+        });
+
+        newthread.listen(HThread.RECEIVEEVENT, evt=>{
+            me.raiseEvent(HThread.RECEIVEEVENT, evt);
+        });
 
         return this;
     }
 
+    //Listene to events
+    listen(_onEvent, handler) {
+        var id = Util.GUID();
+        this.listeners.push({ _onEvent, handler, id });
+
+        return id;
+    }
+
+    // Raise Event 
+    raiseEvent(evt, args) {
+        this.listeners.filter(t => t._onEvent === evt).map(t => {
+            t.handler(args);
+        });
+    }
+
+
     getThread(id) {
-        return this.threads[id] || null;
+        if (this.threads && this.threads[id])
+            return this.threads[id].thread;
+        return null;
     }
 
     // A unique id for the client;

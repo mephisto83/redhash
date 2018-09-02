@@ -1,5 +1,8 @@
 import * as util from './util';
 import { IMessageService } from './interfaces';
+import { strarse } from './testutil';
+import * as HThread from './hashthread';
+
 export default class TestMessageService extends IMessageService {
     constructor(id) {
         super();
@@ -8,6 +11,7 @@ export default class TestMessageService extends IMessageService {
         }
         this.id = id;
         services.push(this);
+        this.lines = {};
     }
     // allows a hashgraph  to be attached
     attach(hg) {
@@ -17,7 +21,9 @@ export default class TestMessageService extends IMessageService {
         return pipeline;
     }
     static globalStep(fail) {
+        console.log('global step');
         services.map(service => {
+            
             service.step(fail, service.id);
         });
     }
@@ -30,7 +36,9 @@ export default class TestMessageService extends IMessageService {
     step(fail, id) {
         var me = this;
         let received = [];
+        console.log('global step');
         pipeline.filter(x => x.to === (id || me.id)).map(t => {
+            console.log('steping - ------------')
             var res = me.received(t.message, t.to, t.from)
             if (fail) {
                 t.error(false);
@@ -62,6 +70,17 @@ export default class TestMessageService extends IMessageService {
             pipeline.push(res);
         });
     }
+    sendMessagesFor(to, from) {
+        var messages = [];
+        var me = this;
+        Object.keys(me.lines).map(t => {
+            messages = [...messages, ...me.lines[t].getMessageToSendTo(to)];
+        });
+
+        return Promise.all(messages.map(t => {
+            return me.send(t, to, from)
+        }));
+    }
     onmessage(handler) {
         this.messageHandler = handler;
     }
@@ -75,6 +94,18 @@ export default class TestMessageService extends IMessageService {
         }
 
         return res;
+    }
+    assignLine(line, id = null) {
+        id = id || util.GUID();
+        this.onmessage((message, to, from) => {
+            var mess = strarse(message);
+            return line.receiveEvent(mess, from);
+        });
+        line.listen(HThread.SENDEVENT, (event) => {
+
+        });
+
+        this.lines[id] = line;
     }
 
 }

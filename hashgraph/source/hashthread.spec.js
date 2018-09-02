@@ -251,7 +251,7 @@ describe('HashThread', function () {
             })
         }
 
-        it.only('s1 sends a message, p1 will get and reply, meta data will be updated', () => {
+        it('s1 sends a message, p1 will get and reply, meta data will be updated', () => {
             var { s1, p1 } = setupTwoCommunicatingContributors();
             assert.ok(s1);
             assert.ok(p1);
@@ -303,25 +303,26 @@ describe('HashThread', function () {
             s1.listen(HashThreadConst.SENDEVENT, evt => {
                 sentEvent = evt;
             });
-
+            console.log(s1.contributors);
             s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
+            var receivedEvent = p1.receiveEvent(strarse(s1.eventList[0]), self);
             HashMeta.print(s1.eventList[0].meta, 3);
-            s1.sentEventSuccessfully(sentEvent.id, person);
+            s1.sentEventSuccessfully(sentEvent.id, person, receivedEvent);
             HashMeta.print(s1.eventList[0].meta, 3);
+
             assert.ok(sentEvent);
             assert.ok(sentEvent.meta);
 
-            assert.ok(sentEvent.meta[0] === parseInt('110110000', 2), `'meta data should be ${parseInt('110110000', 2)} ' ${sentEvent.meta[0]}`);
-            p1.receiveEvent(strarse(sentEvent), self);
             // Sent successfully
-            s1.sentEventSuccessfully(s1.eventList[0].id, person);
+            s1.sentEventSuccessfully(s1.eventList[0].id, person, receivedEvent);
+            HashMeta.print(s1.eventList[0].meta, 3);
 
             var processedEvent = p1.eventList[0];
             assert.ok(processedEvent);
             assert.ok(processedEvent.meta);
 
-            assert.ok(processedEvent.meta[0] === parseInt('110110000', 2), `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
-            assert.ok(sentEvent.meta[0] === parseInt('110110000', 2), `'meta data should be 15 ' ${sentEvent.meta[0]}`);
+            assert.ok(processedEvent.meta[0] === 272, `'meta data shouldnt be ' ${sentEvent.meta[0]}`);
+            assert.ok(sentEvent.meta[0] === 272, `'meta data should be 272 ' ${sentEvent.meta[0]}`);
 
             var consensus = s1.getCompletedEvents();
             assert.ok(consensus);
@@ -336,8 +337,8 @@ describe('HashThread', function () {
             assert.ok(consensus.length === 0);
 
 
-            p1.sentEventSuccessfully(p1.eventList[0].id, otherperson);
-            p2.receiveEvent(strarse(p1.eventList[0]), person);
+            receivedEvent = p2.receiveEvent(strarse(p1.eventList[0]), person);
+            p1.sentEventSuccessfully(receivedEvent.id, otherperson, receivedEvent);
 
 
             consensus = p2.getConsensusEvents();
@@ -345,12 +346,13 @@ describe('HashThread', function () {
             assert.ok(consensus);
             assert.ok(consensus.length === 1, 'this should have reached consensus, but not complete knowledge.');
 
+            HashMeta.print(p2.eventList[0].meta, 3);
             var p2_dest = p2.getNextPossibleDestinationsFor(p2.eventList[0].id);
             console.log(p2_dest);
-            assert.ok(p2_dest);
-            assert.ok(p2_dest.length === 1);
-            s1.receiveEvent(strarse(p2.eventList[0]), otherperson);
-            p2.sentEventSuccessfully(p2.eventList[0].id, self);
+            assert.ok(p2_dest, 'p2_dest has no value');
+            assert.ok(p2_dest.length === 0, 'next destination is not correct');
+            var evet = s1.receiveEvent(strarse(p2.eventList[0]), otherperson);
+            p2.sentEventSuccessfully(evet.id, self, evet);
             console.log('**********************')
 
             HashMeta.print(s1.eventList[0].meta, 3);
@@ -376,8 +378,8 @@ describe('HashThread', function () {
             console.log(threads[0].contributors);
             threads[0].sendEvent(new HashEvent("asndfasdf", null, threads[0].contributors));
             HashMeta.print(threads[0].eventList[0].meta, _thread_count_);
-            threads[1].receiveEvent(strarse(sentEvent), threads[0].self);
-            threads[0].sentEventSuccessfully(threads[0].eventList[0].id, threads[1].self);
+            var eve = threads[1].receiveEvent(strarse(sentEvent), threads[0].self);
+            threads[0].sentEventSuccessfully(threads[0].eventList[0].id, threads[1].self, eve);
             HashMeta.print(threads[0].eventList[0].meta, _thread_count_);
             HashMeta.print(threads[1].eventList[0].meta, _thread_count_);
         });
@@ -400,8 +402,8 @@ describe('HashThread', function () {
                 console.log(destinations);
                 var tempThread = threads.find(t => t.self === destinations[0]);
                 assert.ok(tempThread, 'should find a thread');
-                tempThread.receiveEvent(strarse(sentEvent), threads[0].self);
-                threads[0].sentEventSuccessfully(threads[0].eventList[0].id, tempThread.self);
+                var res = tempThread.receiveEvent(strarse(sentEvent), threads[0].self);
+                threads[0].sentEventSuccessfully(threads[0].eventList[0].id, tempThread.self, res);
 
                 count++;
                 destinations = threads[0].getNextPossibleDestinationsFor(sentEvent.id);
@@ -442,8 +444,8 @@ describe('HashThread', function () {
                             var destinations = thread.getNextPossibleDestinationsFor(sentEvent.id);
                             var tempThread = threads.find(t => t.self === destinations[0]);
                             if (tempThread) {
-                                tempThread.receiveEvent(strarse(sentEvent), thread.self);
-                                thread.sentEventSuccessfully(sentEvent.id, tempThread.self);
+                                var evt = tempThread.receiveEvent(strarse(sentEvent), thread.self);
+                                thread.sentEventSuccessfully(sentEvent.id, tempThread.self, evt);
 
                                 evntToSend = thread.getEventsToSend();
                                 thread.printEvents();
@@ -454,7 +456,7 @@ describe('HashThread', function () {
                 });
             });
 
-            xit('event timing', () => {
+            it('event timing', () => {
                 var _thread_count_ = 2;
                 var threads = setupThreads(_thread_count_);
                 var sentEvent;
@@ -480,12 +482,121 @@ describe('HashThread', function () {
                     console.log(destinations);
                     var tempThread = threads.find(t => t.self === destinations[0]);
                     assert.ok(tempThread, 'should find a thread');
-                    tempThread.receiveEvent(strarse(sentEvent), threads[0].self);
-                    threads[0].sentEventSuccessfully(threads[0].eventList[0].id, tempThread.self);
+                    var evet = tempThread.receiveEvent(strarse(sentEvent), threads[0].self);
+                    threads[0].sentEventSuccessfully(evet.id, tempThread.self, evet);
 
                     count++;
                     destinations = threads[0].getNextPossibleDestinationsFor(sentEvent.id);
                 }
+            });
+
+        });
+
+        describe('producing a list of events for consumption', () => {
+            var steptime = 0;
+            it('s1 sends a message, and produce a list of all events, and completed events', () => {
+                var { s1, p1, p2 } = setup3CommunicatingContributors();
+                assert.ok(s1);
+                assert.ok(p1);
+                var sentEvent;
+                s1.listen(HashThreadConst.SENDEVENT, evt => {
+                    sentEvent = evt;
+                });
+                console.log(s1.contributors);
+
+                s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
+                // assert.ok(sentEvent.meta[0] === parseInt('110110000', 2), `'meta data should be ${parseInt('110110000', 2)} ' ${sentEvent.meta[0]}`);
+                var receivedEvent = p1.receiveEvent(strarse(sentEvent), self);
+                s1.sentEventSuccessfully(sentEvent.id, person, receivedEvent);
+
+                var events = s1.getCompletedEvents();
+                assert.ok(events.length === 0, 'there should be 0 completed events at this point');
+
+
+                receivedEvent = p2.receiveEvent(strarse(sentEvent), self);
+                s1.sentEventSuccessfully(sentEvent.id, person, receivedEvent);
+
+                var events = s1.getCompletedEvents();
+                assert.ok(events.length === 1, 'there should be 1 completed event');
+            });
+
+            beforeEach(() => {
+                steptime = 1;
+                HashEvent.timeService = {
+                    now: () => {
+                        return steptime++
+                    }
+                }
+            })
+
+            it('s1 sends messages, and produce a list of all events, and completed events', () => {
+                var { s1, p1, p2 } = setup3CommunicatingContributors();
+                assert.ok(s1);
+                assert.ok(p1);
+                var sentEvent;
+                s1.listen(HashThreadConst.SENDEVENT, evt => {
+                    sentEvent = evt;
+                });
+                console.log(s1.contributors);
+
+                sentEvent = s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
+                console.log('sent event')
+                console.log(sentEvent.meta);
+
+                var receivedEvent = p1.receiveEvent(strarse(sentEvent), self);
+                s1.sentEventSuccessfully(receivedEvent.id, person, receivedEvent);
+                sentEvent = s1.eventList[0];
+
+                var events = s1.getCompletedEvents();
+                assert.ok(events.length === 0, 'there should be 0 completed events at this point');
+
+                receivedEvent = p2.receiveEvent(strarse(sentEvent), self);
+
+                s1.sentEventSuccessfully(sentEvent.id, otherperson, receivedEvent);
+
+                var events = s1.getCompletedEvents();
+
+                assert.ok(events.length === 1, `'there should be 1 completed event' ${events.length}`);
+
+                s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
+                receivedEvent = p1.receiveEvent(strarse(sentEvent), self);
+                s1.sentEventSuccessfully(sentEvent.id, person, receivedEvent);
+
+                events = s1.getCompletedEvents();
+                assert.ok(events.length === 1, `'there should be 1 completed event ${events.length}'`);
+
+                events = s1.getEvents();
+                assert.ok(events.length === 2, 'there should be 2 total events');
+
+            });
+
+            it('s1 event order when reception order effects timing', () => {
+                var { s1, p1, p2 } = setup3CommunicatingContributors();
+                assert.ok(s1);
+                assert.ok(p1);
+                var sentEvent;
+                console.log(s1.contributors);
+
+                var sentEvent1 = s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
+                var sentEvent2 = s1.sendEvent(new HashEvent("asndfasdf", null, s1.contributors));
+
+                assert(sentEvent1.time < sentEvent2.time, 'the other of the events is wrong');
+                var receivedEvent = p1.receiveEvent(strarse(sentEvent2), self);
+                s1.sentEventSuccessfully(receivedEvent.id, person, receivedEvent);
+
+                receivedEvent = p2.receiveEvent(strarse(sentEvent2), self);
+                s1.sentEventSuccessfully(receivedEvent.id, otherperson, receivedEvent);
+
+                receivedEvent = p1.receiveEvent(strarse(sentEvent1), self);
+                s1.sentEventSuccessfully(receivedEvent.id, person, receivedEvent);
+
+
+                receivedEvent = p2.receiveEvent(strarse(sentEvent1), self);
+                s1.sentEventSuccessfully(receivedEvent.id, otherperson, receivedEvent);
+
+                assert(sentEvent1.time > sentEvent2.time, 'the other of the events is wrong');
+                console.log([sentEvent1.time, sentEvent2.time])
+                console.log(s1.eventList.map(t => t.time))
             });
 
         });

@@ -283,8 +283,8 @@ export default class HashEvent {
         // this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
         // this.meta = HashMeta.set(this.meta, sindex, index, 1, contributors.length);
 
-        HashEvent.updateMeta(this, contributor, contributors, self);
-        HashEvent.updateMeta(this, self, contributors, contributor);
+        // HashEvent.updateMeta(this, contributor, contributors, self);
+        // HashEvent.updateMeta(this, self, contributors, contributor);
         return this;
     }
     static combine(updated, original) {
