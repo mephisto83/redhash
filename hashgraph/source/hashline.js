@@ -15,6 +15,7 @@ export default class HashLine {
             throw 'Hashline: self required';
         }
         this.threads = {};
+        this.threadListeners = {};
         this.name = name;
         this._self = self;
         this.listeners = [];
@@ -122,14 +123,15 @@ export default class HashLine {
         this.threads[name] = {
             thread: newthread
         };
-        newthread.listen(HThread.SENDEVENT, (event) => {
+        this.threadListeners[name] = [];
+        var p = newthread.listen(HThread.SENDEVENT, (event) => {
             me.raiseEvent(HThread.SENDEVENT, event);
         });
-
-        newthread.listen(HThread.RECEIVEEVENT, evt => {
+        this.threadListeners[name].push(p);
+        p = newthread.listen(HThread.RECEIVEEVENT, evt => {
             me.raiseEvent(HThread.RECEIVEEVENT, evt);
         });
-
+        this.threadListeners[name].push(p);
         return this;
     }
 

@@ -38,6 +38,18 @@ export default class MembershipStateMachine {
                 case MA.REMOVE_CONTRIBUTOR:
                     tempstate = removeContributor(tempstate, action);
                     break;
+                case MA.UPDATE_THREAD:
+                    tempstate = updateThread(tempstate, action);
+                    break;
+                case MA.THREAD_CUT_OFF:
+                    tempstate = threadCutOff(tempstate, action);
+                    break;
+                case MA.THREAD_CUT_APPROVAL:
+                    tempstate = threadCutApproval(tempstate, action);
+                    break;
+                case MA.THREAD_CUT_REJECT:
+                    tempstate = threadCutRejection(tempstate, action);
+                    break;
 
             }
         });
@@ -80,10 +92,108 @@ function requestContributorAdd(state, action) {
             }
             break;
         default:
-        console.log('[incorrect state]')
-        break;
+            console.log('[incorrect state]')
+            break;
     }
     return { ...state };
+}
+function updateThread(state, action) {
+    switch (state.state) {
+        case MA.ADD_CONTRIBUTOR:
+            var name = action.from;
+            if (name && state.contributors.find(t => t === name)) {
+                if (state.thread === action.thread) {
+                    return {
+                        ...state,
+                        state: action.type
+                    }
+                }
+            }
+            break;
+    }
+    return { ...state };
+}
+function threadCutOff(state, action) {
+    switch (state.state) {
+        case MA.UPDATE_THREAD:
+            var name = action.from;
+            if (name && state.contributors.find(t => t === name)) {
+                if (!isNaN(action.time)) {
+                    return {
+                        ...state,
+                        state: action.type,
+                        threadCutoff: {
+                            ...(state.threadCutoff || {}),
+                            time: action.time,
+                            votes: {}
+                        }
+                    }
+                }
+            }
+            break;
+    }
+    return { ...state };
+}
+function threadCutApproval(state, action) {
+    switch (state.state) {
+        case MA.THREAD_CUT_OFF:
+            var name = action.from;
+            if (name && state.contributors.find(t => t === name)) {
+                var votes = {
+                    ...((state.threadCutoff || {}).votes || {}),
+                    [name]: true
+                };
+                var update = {
+                    ...state,
+                    threadCutoff: {
+                        ...(state.threadCutoff || {}),
+                        votes
+                    }
+                };
+                var all = !state.contributors.find(t => {
+                    return votes[t] === false || votes[t] === undefined;
+                });
+                if (all) {
+                    update = { ...update, state: MA.THREAD_CUT_APPROVED };
+                }
+
+                return update;
+            }
+            break;
+    }
+    return state;
+}
+function threadCutRejection(state, action) {
+    switch (state.state) {
+        case MA.THREAD_CUT_OFF:
+            var name = action.from;
+            if (name && state.contributors.find(t => t === name)) {
+                var votes = {
+                    ...((state.threadCutoff || {}).votes || {}),
+                    [name]: false
+                };
+                var update = {
+                    ...state,
+                    threadCutoff: {
+                        ...(state.threadCutoff || {}),
+                        votes
+                    }
+                };
+                var all = !state.contributors.find(t => {
+                    return votes[t] === undefined;
+                });
+                var afalse = !!state.contributors.find(t => {
+                    return votes[t] === false;
+                });
+                if (all && afalse) {
+                    update = { ...update, state: MA.THREAD_CUT_REJECTED };
+                }
+                
+                return update;
+            }
+            break;
+    }
+    return state;
 }
 function requestContributorRemove(state, action) {
     switch (state.state) {
@@ -106,18 +216,27 @@ function getContributorRequestName(contributorRequest) {
     return null;
 }
 
+function getThreadName(contributorRequest) {
+    if (contributorRequest && contributorRequest.connectionInfo && contributorRequest.connectionInfo._info) {
+        return contributorRequest.connectionInfo._info.thread || null;
+    }
+    return null;
+}
+
 function addContributor(state, action) {
     switch (state.state) {
         case MA.ACCEPT_CONTRIBUTOR_ADD:
             if (state.contributors.find(t => t === action.from)) {
                 var _name = getContributorRequestName(state.contributorRequest);
+                var _affectedThread = getThreadName(state.contributorRequest)
                 if (_name === action.name) {
                     return {
                         ...state,
                         state: action.type,
                         contributorElection: [],
                         contributorRequest: null,
-                        contributors: [...(state.contributors || []).filter(t => t !== action.name), action.name]
+                        thread: _affectedThread,
+                        proposed: [...(state.contributors || []).filter(t => t !== action.name), action.name]
                     }
                 }
             }

@@ -506,4 +506,159 @@ describe('MembershipStateMachine', function () {
         assert.equal(machine.state.state, undefined);
     });
 
+    it('can update/refresh/change threads.', function () {
+        var machine = new MembershipStateMachine({
+            contributors: [self]
+        });
+        var thread = 'thread';
+        var state = machine.action([...[MA.INITIALIZE_STATE].map(t => { return { type: t } }), {
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            // Need to have all the information required, to make a connection between clients
+            connectionInfo: new IConnectionInfo(person, { thread })
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person
+        }, {
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person
+        }, {
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread
+        }, {
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0
+        }, {
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 0
+        }]);
+
+        assert.equal(state.state, MA.THREAD_CUT_APPROVED);
+        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributors.length, 1);
+        assert.equal(machine.state.state, undefined);
+    });
+
+    it('can update/refresh/change threads.', function () {
+        var machine = new MembershipStateMachine({
+            contributors: [self, person]
+        });
+        var thread = 'thread';
+        var state = machine.action([...[MA.INITIALIZE_STATE].map(t => { return { type: t } }), {
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            // Need to have all the information required, to make a connection between clients
+            connectionInfo: new IConnectionInfo(person2, { thread })
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, {
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, {
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread
+        }, {
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0
+        }, {
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 0
+        }]);
+
+        assert.equal(state.state, MA.THREAD_CUT_OFF);
+        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributors.length, 2);
+        assert.equal(machine.state.state, undefined);
+    });
+
+    it('can update/refresh/change threads. [reject]', function () {
+        var machine = new MembershipStateMachine({
+            contributors: [self]
+        });
+        var thread = 'thread';
+        var state = machine.action([...[MA.INITIALIZE_STATE].map(t => { return { type: t } }), {
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            // Need to have all the information required, to make a connection between clients
+            connectionInfo: new IConnectionInfo(person, { thread })
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person
+        }, {
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person
+        }, {
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread
+        }, {
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0
+        }, {
+            type: MA.THREAD_CUT_REJECT,
+            from: self,
+            time: 0
+        }]);
+
+        assert.equal(state.state, MA.THREAD_CUT_REJECTED);
+        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributors.length, 1);
+        assert.equal(machine.state.state, undefined);
+    });
+
+    it.only('can update/refresh/change threads. [rejeted]', function () {
+        var machine = new MembershipStateMachine({
+            contributors: [self, person]
+        });
+        var thread = 'thread';
+        var state = machine.action([...[MA.INITIALIZE_STATE].map(t => { return { type: t } }), {
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            // Need to have all the information required, to make a connection between clients
+            connectionInfo: new IConnectionInfo(person2, { thread })
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, {
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, {
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread
+        }, {
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0
+        }, {
+            type: MA.THREAD_CUT_REJECT,
+            from: self,
+            time: 0
+        }]);
+
+        assert.equal(state.state, MA.THREAD_CUT_OFF);
+        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributors.length, 2);
+        assert.equal(machine.state.state, undefined);
+    });
 });

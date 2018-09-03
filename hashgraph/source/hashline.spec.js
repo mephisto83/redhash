@@ -252,7 +252,9 @@ describe('HashLine', function () {
 
         line.sendEvent({
             type: MA.REQUEST_CONTRIBUTOR_ADD,
-            connectionInfo: new IConnectionInfo(person2, null)
+            connectionInfo: new IConnectionInfo(person2, {
+                thread: threadid
+            })
         }, ET.MEMBERSHIP);
 
         sendMesses();
@@ -282,10 +284,7 @@ describe('HashLine', function () {
         }, ET.MEMBERSHIP);
 
         sendMesses();
-        // line.sendEvent({
-        //     type: MA.INITIALIZE_STATE
-        // }, ET.MEMBERSHIP);
-        // sendMesses();
+
         var newstate = line.processState(MEMBERSHIP_THREAD)
         var newstate2 = line2.processState(MEMBERSHIP_THREAD)
         // console.log(line.membershipThread.eventList);
@@ -295,13 +294,5 @@ describe('HashLine', function () {
         console.log(newstate2);
         assert.ok(newstate2.state === MA.ADD_CONTRIBUTOR);
         assert.ok(newstate.state === MA.ADD_CONTRIBUTOR);
-
-        // console.log(line.membershipThread.getEvents())
-        // console.log(line2.membershipThread.eventList[1].message);
-        console.log('------------ event list -----------')
-        // console.log(line.membershipThread.eventList);
-
-        console.log('------------ event list 2 -----------')
-        // console.log(line2.membershipThread.eventList);
     });
 });
