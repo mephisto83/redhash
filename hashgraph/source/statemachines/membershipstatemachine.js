@@ -10,6 +10,18 @@ export default class MembershipStateMachine {
     applyState(state) {
         this.state = { ...state };
     }
+    adjustContributors(state) {
+        if (!state) {
+            throw 'requires a state to adjust contributors';
+        }
+        var newstate = {
+            ...state,
+            contributors: [...(state.proposed || [])],
+            state: MA.INITIALIZE_STATE
+        }
+        this.applyState(newstate);
+
+    }
     action(actions) {
         var tempstate = { ...this.state };
         actions.map(action => {
@@ -55,6 +67,7 @@ export default class MembershipStateMachine {
         });
         return tempstate;
     }
+
 }
 
 function initializeState(state, action) {
@@ -63,7 +76,6 @@ function initializeState(state, action) {
     }
     else {
         switch (state.state) {
-            case MA.ADD_CONTRIBUTOR:
             case MA.REJECT_CONTRIBUTOR_REMOVE:
             case MA.REJECT_CONTRIBUTOR_ADD:
                 return {
@@ -97,9 +109,11 @@ function requestContributorAdd(state, action) {
     }
     return { ...state };
 }
+
 function updateThread(state, action) {
     switch (state.state) {
         case MA.ADD_CONTRIBUTOR:
+        case MA.THREAD_CUT_REJECTED:
             var name = action.from;
             if (name && state.contributors.find(t => t === name)) {
                 if (state.thread === action.thread) {
@@ -108,6 +122,12 @@ function updateThread(state, action) {
                         state: action.type
                     }
                 }
+                else {
+                    console.log('--------- thread is not correct')
+                }
+            }
+            else {
+                console.log(' - -------- not a contributor')
             }
             break;
     }
@@ -116,20 +136,37 @@ function updateThread(state, action) {
 function threadCutOff(state, action) {
     switch (state.state) {
         case MA.UPDATE_THREAD:
+        case MA.THREAD_CUT_OFF:
             var name = action.from;
             if (name && state.contributors.find(t => t === name)) {
-                if (!isNaN(action.time)) {
-                    return {
-                        ...state,
-                        state: action.type,
-                        threadCutoff: {
-                            ...(state.threadCutoff || {}),
-                            time: action.time,
-                            votes: {}
+                if (action.thread === state.thread) {
+                    if (!isNaN(action.time)) {
+                        console.log('-------- thread cutoff success')
+                        return {
+                            ...state,
+                            state: action.type,
+                            vote: {},
+                            threadCutoff: {
+                                ...(state.threadCutoff || {}),
+                                time: action.time
+                            }
                         }
                     }
+                    else {
+                        console.log('------------ time is not a number')
+                    }
+                }
+                else {
+                    console.log('------------  wrong thread');
                 }
             }
+            else {
+                console.log('------------ not a contributor')
+            }
+            break;
+        default:
+            console.log(action.type);
+            console.log('------------ incorrect state ' + state.state)
             break;
     }
     return { ...state };
@@ -140,24 +177,32 @@ function threadCutApproval(state, action) {
             var name = action.from;
             if (name && state.contributors.find(t => t === name)) {
                 var votes = {
-                    ...((state.threadCutoff || {}).votes || {}),
+                    ...(state.votes || {}),
                     [name]: true
                 };
+                console.log(votes);
                 var update = {
                     ...state,
+                    votes,
                     threadCutoff: {
-                        ...(state.threadCutoff || {}),
-                        votes
+                        ...(state.threadCutoff || {})
                     }
                 };
+
                 var all = !state.contributors.find(t => {
-                    return votes[t] === false || votes[t] === undefined;
+                    return votes[t] === undefined;
                 });
-                if (all) {
+                var afalse = !!state.contributors.find(t => {
+                    return votes[t] === false;
+                });
+                if (all && !afalse) {
                     update = { ...update, state: MA.THREAD_CUT_APPROVED };
                 }
 
                 return update;
+            }
+            else {
+                console.log('didnt find name')
             }
             break;
     }
@@ -169,14 +214,14 @@ function threadCutRejection(state, action) {
             var name = action.from;
             if (name && state.contributors.find(t => t === name)) {
                 var votes = {
-                    ...((state.threadCutoff || {}).votes || {}),
+                    ...(state.votes || {}),
                     [name]: false
                 };
                 var update = {
                     ...state,
+                    votes,
                     threadCutoff: {
-                        ...(state.threadCutoff || {}),
-                        votes
+                        ...(state.threadCutoff || {})
                     }
                 };
                 var all = !state.contributors.find(t => {
@@ -188,7 +233,7 @@ function threadCutRejection(state, action) {
                 if (all && afalse) {
                     update = { ...update, state: MA.THREAD_CUT_REJECTED };
                 }
-                
+
                 return update;
             }
             break;

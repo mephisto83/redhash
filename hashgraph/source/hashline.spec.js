@@ -295,4 +295,743 @@ describe('HashLine', function () {
         assert.ok(newstate2.state === MA.ADD_CONTRIBUTOR);
         assert.ok(newstate.state === MA.ADD_CONTRIBUTOR);
     });
+
+
+    it('process state machines , add contributor', () => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var sendMesses = function () {
+            tms.sendMessagesFor(person, self);
+            tms2.sendMessagesFor(self, person);
+            TestMessageService.globalStep();
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line2.assignMachine(msmConstructor);
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        line.sendEvent({
+            type: MA.INITIALIZE_STATE
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            connectionInfo: new IConnectionInfo(person2, {
+                thread: threadid
+            })
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+
+        line.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line2.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+
+
+        line2.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        
+
+        sendMesses();
+
+        var newstate = line.processState(MEMBERSHIP_THREAD)
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD)
+        // console.log(line.membershipThread.eventList);
+        assert.ok(newstate);
+        assert.ok(newstate2);
+        console.log(newstate2);
+        assert.ok(newstate2.state === MA.THREAD_CUT_OFF, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+        assert.ok(newstate.state === MA.THREAD_CUT_OFF);
+    });
+
+
+    it('process state machines , approved ', () => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var sendMesses = function () {
+            tms.sendMessagesFor(person, self);
+            tms2.sendMessagesFor(self, person);
+            TestMessageService.globalStep();
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line2.assignMachine(msmConstructor);
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        line.sendEvent({
+            type: MA.INITIALIZE_STATE
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            connectionInfo: new IConnectionInfo(person2, {
+                thread: threadid
+            })
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+
+        line.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line2.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        line2.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: person,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+        
+
+        var newstate = line.processState(MEMBERSHIP_THREAD)
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD)
+        // console.log(line.membershipThread.eventList);
+        assert.ok(newstate);
+        assert.ok(newstate2);
+        console.log(newstate);
+        console.log(newstate2);
+        assert.ok(newstate2.state === MA.THREAD_CUT_APPROVED, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+        assert.ok(newstate.state === MA.THREAD_CUT_APPROVED);
+    });
+
+
+    it('process state machines , rejected ', () => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var sendMesses = function () {
+            tms.sendMessagesFor(person, self);
+            tms2.sendMessagesFor(self, person);
+            TestMessageService.globalStep();
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line2.assignMachine(msmConstructor);
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        line.sendEvent({
+            type: MA.INITIALIZE_STATE
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            connectionInfo: new IConnectionInfo(person2, {
+                thread: threadid
+            })
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+
+        line.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line2.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        line2.sendEvent({
+            type: MA.THREAD_CUT_REJECT,
+            from: person,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+        
+
+        var newstate = line.processState(MEMBERSHIP_THREAD)
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD)
+        // console.log(line.membershipThread.eventList);
+        assert.ok(newstate);
+        assert.ok(newstate2);
+        console.log(newstate);
+        console.log(newstate2);
+        assert.ok(newstate2.state === MA.THREAD_CUT_REJECTED, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+        assert.ok(newstate.state === MA.THREAD_CUT_REJECTED);
+    });
+
+    it('process state machines , rejected by all', () => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var sendMesses = function () {
+            tms.sendMessagesFor(person, self);
+            tms2.sendMessagesFor(self, person);
+            TestMessageService.globalStep();
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line2.assignMachine(msmConstructor);
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        line.sendEvent({
+            type: MA.INITIALIZE_STATE
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            connectionInfo: new IConnectionInfo(person2, {
+                thread: threadid
+            })
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+
+        line.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line2.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_REJECT,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        line2.sendEvent({
+            type: MA.THREAD_CUT_REJECT,
+            from: person,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+        
+
+        var newstate = line.processState(MEMBERSHIP_THREAD)
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD)
+        // console.log(line.membershipThread.eventList);
+        assert.ok(newstate);
+        assert.ok(newstate2);
+        console.log(newstate);
+        console.log(newstate2);
+        assert.ok(newstate2.state === MA.THREAD_CUT_REJECTED, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+        assert.ok(newstate.state === MA.THREAD_CUT_REJECTED);
+    });
+
+    it('process state machines , rejected by all, then approve next suggestion', () => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var sendMesses = function () {
+            tms.sendMessagesFor(person, self);
+            tms2.sendMessagesFor(self, person);
+            TestMessageService.globalStep();
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line2.assignMachine(msmConstructor);
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        line.sendEvent({
+            type: MA.INITIALIZE_STATE
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            connectionInfo: new IConnectionInfo(person2, {
+                thread: threadid
+            })
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+
+        line.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line2.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_REJECT,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        line2.sendEvent({
+            type: MA.THREAD_CUT_REJECT,
+            from: person,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+        
+        line.sendEvent({
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 1,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        line2.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: person,
+            time: 1,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        var newstate = line.processState(MEMBERSHIP_THREAD)
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD)
+        // console.log(line.membershipThread.eventList);
+        assert.ok(newstate);
+        assert.ok(newstate2);
+        console.log(newstate);
+        console.log(newstate2);
+        assert.ok(newstate2.state === MA.THREAD_CUT_APPROVED, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+        assert.ok(newstate.state === MA.THREAD_CUT_APPROVED);
+    });
+
+
+    it('process state machines , approved ', () => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var sendMesses = function () {
+            tms.sendMessagesFor(person, self);
+            tms2.sendMessagesFor(self, person);
+            TestMessageService.globalStep();
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line2.assignMachine(msmConstructor);
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        line.sendEvent({
+            type: MA.INITIALIZE_STATE
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            connectionInfo: new IConnectionInfo(person2, {
+                thread: threadid
+            })
+        }, ET.MEMBERSHIP);
+
+        sendMesses();
+
+
+        line.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line2.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: person,
+            name: person2
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.ADD_CONTRIBUTOR,
+            from: self,
+            name: person2
+        }, ET.MEMBERSHIP);
+
+
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.UPDATE_THREAD,
+            from: self,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_OFF,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+        line.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: self,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+
+
+        line2.sendEvent({
+            type: MA.THREAD_CUT_APPROVAL,
+            from: person,
+            time: 0,
+            thread: threadid
+        }, ET.MEMBERSHIP);
+        sendMesses();
+        
+
+        var newstate = line.processState(MEMBERSHIP_THREAD)
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD)
+        // console.log(line.membershipThread.eventList);
+        assert.ok(newstate);
+        assert.ok(newstate2);
+        console.log(newstate);
+        console.log(newstate2);
+        assert.ok(newstate2.state === MA.THREAD_CUT_APPROVED, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+        assert.ok(newstate.state === MA.THREAD_CUT_APPROVED);
+
+        line.adjustContributors();
+    });
+
 });

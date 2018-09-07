@@ -288,7 +288,8 @@ describe('MembershipStateMachine', function () {
 
         assert.equal(state.state, MA.ADD_CONTRIBUTOR);
         assert.equal(state.contributorElection.length, 0);
-        assert.equal(state.contributors.length, 2);
+        assert.equal(state.contributors.length, 1);
+        assert.equal(state.proposed.length, 2);
         assert.equal(machine.state.state, undefined);
     });
 
@@ -313,9 +314,10 @@ describe('MembershipStateMachine', function () {
             type: MA.INITIALIZE_STATE
         }]);
 
-        assert.equal(state.state, MA.INITIALIZE_STATE);
+        assert.equal(state.state, MA.ADD_CONTRIBUTOR);
         assert.equal(state.contributorElection.length, 0);
-        assert.equal(state.contributors.length, 2);
+        assert.equal(state.contributors.length, 1);
+        assert.equal(state.proposed.length, 2);
         assert.equal(machine.state.state, undefined);
     });
 
@@ -530,10 +532,12 @@ describe('MembershipStateMachine', function () {
         }, {
             type: MA.THREAD_CUT_OFF,
             from: self,
-            time: 0
+            time: 0,
+            thread
         }, {
             type: MA.THREAD_CUT_APPROVAL,
             from: self,
+            thread,
             time: 0
         }]);
 
@@ -571,11 +575,13 @@ describe('MembershipStateMachine', function () {
         }, {
             type: MA.THREAD_CUT_OFF,
             from: self,
-            time: 0
+            time: 0,
+            thread
         }, {
             type: MA.THREAD_CUT_APPROVAL,
             from: self,
-            time: 0
+            time: 0,
+            thread
         }]);
 
         assert.equal(state.state, MA.THREAD_CUT_OFF);
@@ -608,10 +614,12 @@ describe('MembershipStateMachine', function () {
         }, {
             type: MA.THREAD_CUT_OFF,
             from: self,
+            thread,
             time: 0
         }, {
             type: MA.THREAD_CUT_REJECT,
             from: self,
+            thread,
             time: 0
         }]);
 
@@ -621,7 +629,7 @@ describe('MembershipStateMachine', function () {
         assert.equal(machine.state.state, undefined);
     });
 
-    it.only('can update/refresh/change threads. [rejeted]', function () {
+    it('can update/refresh/change threads. [rejeted]', function () {
         var machine = new MembershipStateMachine({
             contributors: [self, person]
         });
@@ -649,11 +657,13 @@ describe('MembershipStateMachine', function () {
         }, {
             type: MA.THREAD_CUT_OFF,
             from: self,
-            time: 0
+            time: 0,
+            thread
         }, {
             type: MA.THREAD_CUT_REJECT,
             from: self,
-            time: 0
+            time: 0,
+            thread
         }]);
 
         assert.equal(state.state, MA.THREAD_CUT_OFF);

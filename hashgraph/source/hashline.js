@@ -3,6 +3,7 @@ import * as Util from './util';
 import * as HThread from './hashthread';
 import HashEvent from './hashevent';
 import ET from './eventtypes';
+import * as MA from './statemachines/membershipactions';
 export const MEMBERSHIP_THREAD = 'MEMBERSHIP_THREAD';
 export const EVENT_THREAD = 'EVENT_THREAD';
 export default class HashLine {
@@ -39,6 +40,7 @@ export default class HashLine {
 
         return newstate;
     }
+
     sendEvent(msg, type) {
         var me = this;
         if (me.membershipThread && type === ET.MEMBERSHIP) {
@@ -46,6 +48,21 @@ export default class HashLine {
         }
         else if (me.eventThread) {
             me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors));
+        }
+    }
+    adjustContributors() {
+        var newstate = this.processState(MEMBERSHIP_THREAD);
+        if (newstate) {
+            switch (newstate.state) {
+                case MA.THREAD_CUT_APPROVED:
+                    this.stateMatchines[MEMBERSHIP_THREAD].adjustContributors(newstate);
+                    var thread = this.getThread(newstate.thread);
+                    HashThread.branchThread(thread, {
+                        contributors: newstate.contributors,
+                        startTime: newstate.threadCutoff.time
+                    })
+                    break;
+            }
         }
     }
     receiveEvent(msg, from) {
