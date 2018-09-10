@@ -23,7 +23,7 @@ export default class TestMessageService extends IMessageService {
     static globalStep(fail) {
         console.log('global step');
         services.map(service => {
-            
+
             service.step(fail, service.id);
         });
     }
@@ -78,11 +78,49 @@ export default class TestMessageService extends IMessageService {
         });
 
         return Promise.all(messages.map(t => {
-            return me.send(t, to, from)
+            return me.send(t, to, from).then(res => {
+                var service = services.find(t => t.id === from);
+                if (service) {
+                    service.sentEventSuccessfully(to, res);
+                }
+            })
         }));
+    }
+
+    sendMessages(from) {
+        var messages = [];
+        var me = this;
+        var promises = [];
+        Object.keys(me.lines).map(t => {
+            var line = me.lines[t];
+            messages = line.getMessageToSend() || [];
+            (messages.map(t => {
+                (line.getNextPossibleDestinationsFor(t).map(dests => {
+                    console.log(dests);
+                    ([dests].map(to => {
+                        console.log('sending messages')
+                        promises.push(me.send(t, to, from).then(res => {
+                            var service = services.find(t => t.id === from);
+                            if (service) {
+                                service.sentEventSuccessfully(to, res);
+                            }
+                        }));
+                    }));
+                }));
+            }));
+        });
+        return Promise.all(promises);
     }
     onmessage(handler) {
         this.messageHandler = handler;
+    }
+    onmessagesent(handler) {
+        this.messageSentHandler = handler;
+    }
+    sentEventSuccessfully(to, evt) {
+        if (this.messageSentHandler) {
+            this.messageSentHandler(to, evt);
+        }
     }
     received(message, to, from) {
         var res = null;
@@ -101,6 +139,11 @@ export default class TestMessageService extends IMessageService {
             var mess = strarse(message);
             return line.receiveEvent(mess, from);
         });
+
+        this.onmessagesent((to, evt) => {
+            line.sentEventSuccessfully(to, evt);
+        });
+
         line.listen(HThread.SENDEVENT, (event) => {
 
         });

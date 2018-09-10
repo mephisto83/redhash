@@ -161,7 +161,12 @@ export default class HashThread {
     }
     sortEvents() {
         this.eventList = [...this.eventList.sort((a, b) => {
-            return a.time - b.time;
+            if (a.eventSource === b.eventSource) {
+                return a.eventIndex - b.eventIndex;
+            }
+            if (a.time !== b.time)
+                return a.time - b.time;
+            return a.id.localeCompare(b.id);
         })]
     }
     handleUpdateEvent(evt) {
@@ -171,7 +176,7 @@ export default class HashThread {
         if (original && update) {
             HashEvent.combine(update, original);
             if (original instanceof HashEvent) {
-                original.setMetaEvidence(from, this.self, this.contributors);
+                original.setMetaEvidence(from, this.self);
                 this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, original.eventIndex);
             }
             this.sortEvents();
@@ -181,19 +186,19 @@ export default class HashThread {
         if (args) {
             var { event, from } = args;
             if (event instanceof HashEvent) {
-                HashEvent.updateMeta(event, this.self, this.contributors, from);
-                event.setMetaEvidence(from, this.self, this.contributors);
+                event.setMetaEvidence(from, this.self);
                 this.raiseEvent(EVENTUPDATED, args);
 
                 this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, event.eventIndex);
+                
             }
         }
     }
     handleUpdatedEvent(evt) {
         if (evt) {
             var { event } = evt;
-            var contributors = HashEvent.getContributorsNeedingUpdates(event, this.self, this.contributors);
-
+            // var contributors = HashEvent.getContributorsNeedingUpdates(event, this.self, this.contributors);
+           
         }
     }
     //Copy
@@ -211,6 +216,18 @@ export default class HashThread {
     //Creates a new instance of a thread.
     static createThread(self, contributors, threadid) {
         return new HashThread(contributors || [self], self, threadid);
+    }
+
+    static branchThread(thread, ops) {
+        var { contributors, startTime } = ops;
+        console.log(thread);
+        thread.eventList.filter(evt => {
+            return !(HashEvent.hasReachedCompleted(evt, thread.contributors.length) && evt.time <= startTime);
+        }).map(evt => {
+            console.log('applying contributors')
+            return evt.applyContributors(contributors);
+        });
+        thread.contributors = contributors;
     }
 
     //Listene to events
@@ -265,7 +282,7 @@ export default class HashThread {
         var me = this;
         var evnt = me.getEvent(evntId);
         console.log(evntId);
-        return HashEvent.getUncontacted(evnt, me.contributors, me.self);
+        return HashEvent.getUncontacted(evnt, me.self);
     }
     _getTargeMinimum(dic) {
         var min = Infinity;
@@ -321,6 +338,7 @@ export default class HashThread {
         if (hashEvent instanceof HashEvent) {
             this.eventIndex++;
             var newevent = hashEvent
+                .setSource(this.self)
                 .stamp(this.self, this.eventIndex, this.threadId);
 
             this.eventHeads[this.self] = Math.max(this.eventHeads[this.self] || 0, newevent.eventIndex);
@@ -332,7 +350,8 @@ export default class HashThread {
     }
     sendEventId(evt, person) {
     }
-    sentEventSuccessfully(eventId, to, updateEvent) {
+    sentEventSuccessfully(to, updateEvent) {
+        var eventId = updateEvent.id;
         var evt = this.eventList.find(t => t.id === eventId);
         if (evt instanceof HashEvent) {
             evt.setMetaEvidence(to, this.self, this.contributors);
@@ -345,6 +364,7 @@ export default class HashThread {
             }
 
             this.eventHeads[this.self] = Math.max(this.eventHeads[this.self], evt.eventIndex);
+            this.sortEvents();
         }
         else {
             throw 'not a hash event'
@@ -379,7 +399,7 @@ export default class HashThread {
                         });
                         break;
                     default:
-                        
+
                         this.raiseEvent(RECEIVEEVENT, {
                             event: newevent,
                             from: receivedFrom

@@ -56,11 +56,15 @@ export default class HashLine {
             switch (newstate.state) {
                 case MA.THREAD_CUT_APPROVED:
                     this.stateMatchines[MEMBERSHIP_THREAD].adjustContributors(newstate);
-                    var thread = this.getThread(newstate.thread);
-                    HashThread.branchThread(thread, {
-                        contributors: newstate.contributors,
-                        startTime: newstate.threadCutoff.time
-                    })
+                    console.log(newstate);
+                    var thread = this.getThread(EVENT_THREAD);
+                    if (thread.threadId === newstate.thread) {
+                        HashThread.branchThread(thread, {
+                            contributors: newstate.proposed,
+                            startTime: newstate.threadCutoff.time,
+                            state: newstate.storedState[EVENT_THREAD]
+                        });
+                    }
                     break;
             }
         }
@@ -81,6 +85,19 @@ export default class HashLine {
         }
         return reply;
     }
+    sentEventSuccessfully(from, evnt) {
+        var me = this;
+        var hashmsg = HashEvent.create(evnt);
+
+        switch (hashmsg._type) {
+            case ET.MEMBERSHIP:
+                me.membershipThread.sentEventSuccessfully(from, hashmsg);
+                break;
+            default:
+                me.eventThread.sentEventSuccessfully(from, hashmsg);
+                break;
+        }
+    }
     getEventsToSend() {
         var me = this;
         var mt = me.membershipThread;
@@ -99,6 +116,11 @@ export default class HashLine {
     getMessageToSendTo(destination) {
         var me = this;
         return me.getEventsToSend().filter(t => me.getNextPossibleDestinationsFor(t).indexOf(destination) !== -1);
+    }
+
+    getMessageToSend() {
+        var me = this;
+        return me.getEventsToSend();
     }
     getNextPossibleDestinationsFor(evt) {
         var thread = null;

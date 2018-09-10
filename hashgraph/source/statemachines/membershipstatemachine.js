@@ -145,6 +145,7 @@ function threadCutOff(state, action) {
                         return {
                             ...state,
                             state: action.type,
+                            storedState: { ...(state.storedState || {}),   ...action.storedState },
                             vote: {},
                             threadCutoff: {
                                 ...(state.threadCutoff || {}),

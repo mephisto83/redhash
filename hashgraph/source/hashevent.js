@@ -62,10 +62,6 @@ export const _documentation = {
         type: 'function',
         description: 'Combines an merges 2 events'
     },
-    updateMeta: {
-        type: 'function',
-        description: 'Updates the meta data'
-    },
     hasReachedCompleted: {
         type: 'function',
         description: 'Returns true is the event has reached the completed state.'
@@ -119,13 +115,13 @@ export const _documentation = {
         type: 'function',
         description: 'Set up the meta data for the current number of contributors'
     },
-    setMetaContributorReceived: {
-        type: 'function',
-        description: 'Sets the contributor as having received the event in the meta data on the event.'
-    },
     setMetaEvidence: {
         type: 'function',
         description: 'Sets the meta evidence'
+    },
+    applyContributors: {
+        type: 'function',
+        description: 'Applies a new set of contributors to the event'
     }
 }
 export default class HashEvent {
@@ -142,6 +138,7 @@ export default class HashEvent {
         this.contributors = [...contributors];
         this.message = _message;
         this.eventIndex = null;
+        this.eventSource = null;
         this._type = type;
         this.id = Util.GUID();
         this.threadId = null;
@@ -190,6 +187,7 @@ export default class HashEvent {
         duplicate.id = hashEvent.id;
         duplicate.threadId = hashEvent.threadId
         duplicate._type = hashEvent._type;
+        duplicate.eventSource = hashEvent.eventSource;
         duplicate.eventIndex = hashEvent.eventIndex;
         duplicate.message = hashEvent.message;
         // duplicate.meta = HashMeta.copy(hashEvent.meta);
@@ -201,6 +199,7 @@ export default class HashEvent {
         hashEvent.applyHistory(Object.assign({}, _obj.history));
         hashEvent._type = _obj._type;
         hashEvent.eventIndex = _obj.eventIndex;
+        hashEvent.eventSource = _obj.eventSource;
         // hashEvent.meta = HashMeta.copy(_obj.meta);
         hashEvent.threadId = _obj.threadId
         hashEvent.id = _obj.id;
@@ -221,6 +220,10 @@ export default class HashEvent {
         }
 
     }
+    setSource(src) {
+        this.eventSource = src;
+        return this;
+    }
     applyHistory(hist) {
         var update = {};
         var me = this;
@@ -232,6 +235,25 @@ export default class HashEvent {
             });
         this.history = Object.assign({}, this.history, update);
         this.updateTime();
+    }
+    applyContributors(contributors) {
+        var me = this;
+        console.log(contributors);
+        contributors.map(c => {
+            if (!me.history.hasOwnProperty(c)) {
+                me.history[c] = null;
+            }
+        });
+        var keys = Object.keys(me.history);
+        console.log('checking keys');
+        keys.map(key => {
+            if (contributors.indexOf(key) === -1) {
+                delete me.history[key];
+            }
+        });
+        me.contributors = [...contributors];
+        me.updateTime();
+        return me;
     }
     getHistory() {
         return this.history;
@@ -258,24 +280,13 @@ export default class HashEvent {
     print(size) {
         HashMeta.print(this.meta, size);
     }
-    setupMeta(numberOfContributors) {
-        // this.meta = HashMeta.create(numberOfContributors);
+    setupMeta() {
         return this;
     }
-    setMetaContributorReceived(contributor, contributors) {
-        var index = contributors.indexOf(contributor);
-        if (index === -1) {
-            throw 'invalid contributor index';
-        }
-        // this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
-        // if (index === 0) {
-        //     HashMeta.print(this.meta);
-        // }
-        return this;
-    }
-    setMetaEvidence(contributor, self, contributors) {
-        var index = contributors.indexOf(contributor);
-        var sindex = contributors.indexOf(self);
+    setMetaEvidence(contributor, self) {
+        var me = this;
+        var index = me.contributors.indexOf(contributor);
+        var sindex = me.contributors.indexOf(self);
         if (index === -1) {
             throw 'invalid contributor index';
         }
@@ -283,12 +294,6 @@ export default class HashEvent {
             throw 'invalid contributor sindex';
         }
 
-        // this.meta = HashMeta.set(this.meta, index, sindex, 1, contributors.length);
-        // this.meta = HashMeta.set(this.meta, index, index, 1, contributors.length);
-        // this.meta = HashMeta.set(this.meta, sindex, index, 1, contributors.length);
-
-        // HashEvent.updateMeta(this, contributor, contributors, self);
-        // HashEvent.updateMeta(this, self, contributors, contributor);
         return this;
     }
     static combine(updated, original) {
@@ -304,38 +309,25 @@ export default class HashEvent {
 
         return original;
     }
-    static updateMeta(evnt, self, contributors, from) {
-        if (evnt instanceof HashEvent) {
-            var index = contributors.indexOf(self);
 
-            evnt.setMetaContributorReceived(self, contributors);
-            // contributors.map((c, i) => {
-            //     if (i !== index)
-            //         evnt.meta = HashMeta.rowOr(evnt.meta, index, i, contributors.length)
-            // });
-        }
-    }
-
-    static hasReachedCompleted(evnt, size) {
-        // return HashMeta.consensus(evnt.meta, size);
+    static hasReachedCompleted(evnt) {
         var keys = Object.keys(evnt.history);
-        return evnt.contributors.length === keys.length && keys.all(t => evnt.history[t])
+        return evnt.contributors.length === keys.length && keys.all(t => evnt.history[t] !== null)
     }
-    static getUncontacted(evnt, contributors, self) {
-        var index = contributors.indexOf(self);
+
+    static getUncontacted(evnt, self) {
         var keys = Object.keys(evnt.history);
         return keys.filter(t => {
             return t !== self && evnt.history[t] === null;
         });
     }
-    static hasReachedConsensus(evnt, contributors) {
-        var keys = Object.keys(evnt.history);
-        return keys.filter(t => {
-            return evnt.history[t] !== null;
-        });
+
+    static hasReachedConsensus(evnt) {
+        return HashEvent.hasReachedCompleted(evnt);
     }
-    static getContributorsNeedingUpdates(evnt, self, contributors) {
+    static getContributorsNeedingUpdates(evnt, self) {
         if (evnt && evnt.meta) {
+            var contributors = evnt.contributors;
             var index = contributors.indexOf(self);
             var columnInfo = HashMeta.column(evnt.meta, index, contributors.length);
 
@@ -346,13 +338,13 @@ export default class HashEvent {
         return null;
     }
 
-    static getUnnotifiedContributors(evnt, contributors) {
+    static getUnnotifiedContributors(evnt) {
         var keys = Object.keys(evnt.history);
         return keys.filter(t => {
             return evnt.history[t] === null;
         });
     }
-    static getNotifiedContributors(evnt, contributors) {
+    static getNotifiedContributors(evnt) {
         var keys = Object.keys(evnt.history);
         return keys.filter(t => {
             return evnt.history[t] !== null;

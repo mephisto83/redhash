@@ -1,5 +1,5 @@
 import assert from 'assert';
-import HashLine from './hashline';
+import HashLine, { EVENT_THREAD } from './hashline';
 import HashEvent from './hashevent';
 import TestMessageService from './testmessageservice';
 import * as HThread from './hashthread';
@@ -8,6 +8,8 @@ import { MEMBERSHIP_THREAD } from './hashline';
 import IConnectionInfo from './statemachines/iconnectioninfo';
 import * as MA from './statemachines/membershipactions';
 import MembershipStateMachine from './statemachines/membershipstatemachine';
+import CatStateMachine from './statemachines/catstatemachine';
+import * as CSM from './statemachines/catstatemachine';
 describe('HashLine', function () {
     it('can create a hash line', () => {
         var line = new HashLine('line', 'self');
@@ -399,7 +401,7 @@ describe('HashLine', function () {
             time: 0,
             thread: threadid
         }, ET.MEMBERSHIP);
-        
+
 
         sendMesses();
 
@@ -518,7 +520,7 @@ describe('HashLine', function () {
             thread: threadid
         }, ET.MEMBERSHIP);
         sendMesses();
-        
+
 
         var newstate = line.processState(MEMBERSHIP_THREAD)
         var newstate2 = line2.processState(MEMBERSHIP_THREAD)
@@ -636,7 +638,7 @@ describe('HashLine', function () {
             thread: threadid
         }, ET.MEMBERSHIP);
         sendMesses();
-        
+
 
         var newstate = line.processState(MEMBERSHIP_THREAD)
         var newstate2 = line2.processState(MEMBERSHIP_THREAD)
@@ -753,7 +755,7 @@ describe('HashLine', function () {
             thread: threadid
         }, ET.MEMBERSHIP);
         sendMesses();
-        
+
 
         var newstate = line.processState(MEMBERSHIP_THREAD)
         var newstate2 = line2.processState(MEMBERSHIP_THREAD)
@@ -870,7 +872,7 @@ describe('HashLine', function () {
             thread: threadid
         }, ET.MEMBERSHIP);
         sendMesses();
-        
+
         line.sendEvent({
             type: MA.UPDATE_THREAD,
             from: self,
@@ -950,6 +952,7 @@ describe('HashLine', function () {
             type: MA.INITIALIZE_STATE
         }, ET.MEMBERSHIP);
 
+
         sendMesses();
 
         line.sendEvent({
@@ -986,6 +989,14 @@ describe('HashLine', function () {
         }, ET.MEMBERSHIP);
 
 
+        line.sendEvent('an event');
+
+        line.sendEvent('an event 2');
+
+        line.sendEvent('an event 3');
+
+        line2.sendEvent('an event 4');
+
         sendMesses();
 
         line.sendEvent({
@@ -1019,7 +1030,7 @@ describe('HashLine', function () {
             thread: threadid
         }, ET.MEMBERSHIP);
         sendMesses();
-        
+
 
         var newstate = line.processState(MEMBERSHIP_THREAD)
         var newstate2 = line2.processState(MEMBERSHIP_THREAD)
@@ -1032,6 +1043,340 @@ describe('HashLine', function () {
         assert.ok(newstate.state === MA.THREAD_CUT_APPROVED);
 
         line.adjustContributors();
+
+        assert.ok(line);
+        assert.ok(line.threads[EVENT_THREAD].thread.eventList);
+        console.log(line.threads[EVENT_THREAD].thread.eventList[0]);
+        assert.ok(line.threads[EVENT_THREAD].thread.eventList[0]);
+        assert.ok(line.threads[EVENT_THREAD].thread.eventList[0].contributors.length === 3, 'the contributor count is not right');
     });
 
+
+    it('process state machines , approved, async ', (done) => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        var line3;
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var tms3;
+        var sendMesses = function () {
+            var p = Promise.all([
+                tms.sendMessages(self),
+                tms2.sendMessages(person),
+                tms3 ? tms3.sendMessages(person2) : null
+            ].filter(t => t));
+            TestMessageService.globalStep();
+            return p;
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        var csm = function () {
+            return new CatStateMachine({
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line.assignMachine(csm, EVENT_THREAD);
+
+        line2.assignMachine(msmConstructor);
+        line2.assignMachine(csm, EVENT_THREAD);
+
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        var EVENT = 'EVENT';
+
+
+
+        Promise.resolve().then(() => {
+
+            line.sendEvent({
+                type: MA.INITIALIZE_STATE
+            }, ET.MEMBERSHIP);
+
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.REQUEST_CONTRIBUTOR_ADD,
+                connectionInfo: new IConnectionInfo(person2, {
+                    thread: threadid
+                })
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+        }).then(() => {
+            line.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+            console.log(line.threads[MEMBERSHIP_THREAD].thread.eventList[0])
+        }).then(sendMesses).then(() => {
+            line2.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: person,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.ADD_CONTRIBUTOR,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 1' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 3' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 4' });
+            line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' });
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.THREAD_CUT_OFF,
+                from: self,
+                time: 0,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.UPDATE_THREAD,
+                from: self,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.THREAD_CUT_OFF,
+                from: self,
+                time: 2000,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: self,
+                time: 2000,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line2.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: person,
+                time: 2000,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var newstate = line.processState(MEMBERSHIP_THREAD);
+            var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+            // console.log(line.membershipThread.eventList);
+            assert.ok(newstate);
+            assert.ok(newstate2);
+            console.log(newstate);
+            console.log(newstate2);
+            assert.ok(newstate2.state === MA.THREAD_CUT_APPROVED, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+            assert.ok(newstate.state === MA.THREAD_CUT_APPROVED);
+        }).then(sendMesses).then(() => {
+            line.adjustContributors();
+            line2.adjustContributors();
+
+            assert.ok(line);
+            assert.ok(line.threads[EVENT_THREAD].thread.eventList);
+            console.log('adjusted event');
+            console.log(line.threads[EVENT_THREAD].thread.eventList[0]);
+            console.log(line.threads[EVENT_THREAD].thread.eventList.length);
+            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0], ' missing at least one event');
+            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0].contributors.length === 2, 'the contributor count is not right');
+
+            var eventstate = line.getThread(EVENT_THREAD).getEvents();
+            var eventstate2 = line2.processState(EVENT_THREAD);
+            console.log(eventstate);
+            console.log(eventstate2);
+
+            line3 = new HashLine(person2, person2, [...contributors, person2]);
+            line3.initialize(threadid);
+            line3.assignMachine(msmConstructor);
+            line3.assignMachine(csm, EVENT_THREAD);
+            tms3 = new TestMessageService(line3.name);
+            tms3.assignLine(line);
+        }).then(() => {
+            done();
+        });
+
+
+
+
+
+    });
+
+
+    it.only('process state machines , approved, async, continue with 3rd line ', (done) => {
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var line = new HashLine(self, self, [...contributors]);
+        var line2 = new HashLine(person, person, [...contributors]);
+        var line3;
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new TestMessageService(line.name);
+        var tms3;
+        var sendMesses = function () {
+            var p = Promise.all([
+                tms.sendMessages(self),
+                tms2.sendMessages(person),
+                tms3 ? tms3.sendMessages(person2) : null
+            ].filter(t => t));
+            TestMessageService.globalStep();
+            return p;
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        var csm = function () {
+            return new CatStateMachine({
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line.assignMachine(csm, EVENT_THREAD);
+
+        line2.assignMachine(msmConstructor);
+        line2.assignMachine(csm, EVENT_THREAD);
+
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new TestMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        var EVENT = 'EVENT';
+
+
+
+        Promise.resolve().then(() => {
+
+            line.sendEvent({
+                type: MA.INITIALIZE_STATE
+            }, ET.MEMBERSHIP);
+
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.REQUEST_CONTRIBUTOR_ADD,
+                connectionInfo: new IConnectionInfo(person2, {
+                    thread: threadid
+                })
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+        }).then(() => {
+            line.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+            console.log(line.threads[MEMBERSHIP_THREAD].thread.eventList[0])
+        }).then(sendMesses).then(() => {
+            line2.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: person,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.ADD_CONTRIBUTOR,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 1' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 3' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 4' });
+            line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' });
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.UPDATE_THREAD,
+                from: self,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var newstate = line.processState(EVENT_THREAD);
+            line.sendEvent({
+                type: MA.THREAD_CUT_OFF,
+                from: self,
+                time: 2000,
+                storedState: { EVENT_THREAD: newstate },
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: self,
+                time: 2000,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line2.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: person,
+                time: 2000,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var newstate = line.processState(MEMBERSHIP_THREAD);
+            var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+            // console.log(line.membershipThread.eventList);
+            assert.ok(newstate);
+            assert.ok(newstate2);
+            console.log(newstate);
+            console.log(newstate2);
+            assert.ok(newstate2.state === MA.THREAD_CUT_APPROVED, `${newstate2.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+            assert.ok(newstate.state === MA.THREAD_CUT_APPROVED);
+        }).then(sendMesses).then(() => {
+            line.adjustContributors();
+            line2.adjustContributors();
+
+            assert.ok(line);
+            assert.ok(line.threads[EVENT_THREAD].thread.eventList);
+            console.log('adjusted event');
+            console.log(line.threads[EVENT_THREAD].thread.eventList[0]);
+            console.log(line.threads[EVENT_THREAD].thread.eventList.length);
+            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0], ' missing at least one event');
+            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0].contributors.length === 2, 'the contributor count is not right');
+
+            var eventstate = line.processState(EVENT_THREAD);
+            var eventstate2 = line2.processState(EVENT_THREAD);
+            console.log(eventstate);
+            console.log(eventstate2);
+            console.log(line.getThread(EVENT_THREAD).getEvents().map(e=>e.id));
+            console.log(line2.getThread(EVENT_THREAD).getEvents().map(e=>e.id));
+            
+            line3 = new HashLine(person2, person2, [...contributors, person2]);
+            line3.initialize(threadid);
+            line3.assignMachine(msmConstructor);
+            line3.assignMachine(csm, EVENT_THREAD);
+            tms3 = new TestMessageService(line3.name);
+            tms3.assignLine(line);
+        }).then(() => {
+            done();
+        });
+
+
+
+
+
+    });
 });
