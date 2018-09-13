@@ -537,6 +537,7 @@ describe('MembershipStateMachine', function () {
         }, {
             type: MA.THREAD_CUT_APPROVAL,
             from: self,
+            range: { minimum: 10, maximum: 1000 },
             thread,
             time: 0
         }]);
@@ -581,6 +582,7 @@ describe('MembershipStateMachine', function () {
             type: MA.THREAD_CUT_APPROVAL,
             from: self,
             time: 0,
+            range: { minimum: 10, maximum: 1000 },
             thread
         }]);
 

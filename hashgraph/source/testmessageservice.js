@@ -21,7 +21,6 @@ export default class TestMessageService extends IMessageService {
         return pipeline;
     }
     static globalStep(fail) {
-        console.log('global step');
         services.map(service => {
 
             service.step(fail, service.id);
@@ -36,9 +35,9 @@ export default class TestMessageService extends IMessageService {
     step(fail, id) {
         var me = this;
         let received = [];
-        console.log('global step');
+
         pipeline.filter(x => x.to === (id || me.id)).map(t => {
-            console.log('steping - ------------')
+
             var res = me.received(t.message, t.to, t.from)
             if (fail) {
                 t.error(false);
@@ -98,7 +97,6 @@ export default class TestMessageService extends IMessageService {
                 (line.getNextPossibleDestinationsFor(t).map(dests => {
                     console.log(dests);
                     ([dests].map(to => {
-                        console.log('sending messages')
                         promises.push(me.send(t, to, from).then(res => {
                             var service = services.find(t => t.id === from);
                             if (service) {

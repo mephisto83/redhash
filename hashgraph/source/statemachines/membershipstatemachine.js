@@ -145,7 +145,7 @@ function threadCutOff(state, action) {
                         return {
                             ...state,
                             state: action.type,
-                            storedState: { ...(state.storedState || {}),   ...action.storedState },
+                            storedState: { ...(state.storedState || {}), ...action.storedState },
                             vote: {},
                             threadCutoff: {
                                 ...(state.threadCutoff || {}),
@@ -187,6 +187,10 @@ function threadCutApproval(state, action) {
                     votes,
                     threadCutoff: {
                         ...(state.threadCutoff || {})
+                    },
+                    ranges: {
+                        ...(state.ranges || {}),
+                        [name]: action.range
                     }
                 };
 
@@ -197,7 +201,17 @@ function threadCutApproval(state, action) {
                     return votes[t] === false;
                 });
                 if (all && !afalse) {
-                    update = { ...update, state: MA.THREAD_CUT_APPROVED };
+
+                    var ranges = update.ranges;
+                    console.log(update);
+                    console.log(action.range);
+                    var time = getAgreeableTime(ranges);
+                    if (time === null) {
+                        update = { ...update, state: MA.THREAD_CANT_CUT_NO_AGREEABLE_TIME };
+                    }
+                    else {
+                        update = { ...update, time, state: MA.THREAD_CUT_APPROVED };
+                    }
                 }
 
                 return update;
@@ -208,6 +222,32 @@ function threadCutApproval(state, action) {
             break;
     }
     return state;
+}
+function getAgreeableTime(ranges) {
+    var maximum = null;
+    var minimum = null;
+    Object.keys(ranges).map(t => {
+        if (ranges[t]) {
+            var max = ranges[t].maximum;
+            var min = ranges[t].minimum;
+            if (maximum === null) {
+                maximum = max;
+            }
+            if (minimum === null) {
+                minimum = null;
+            }
+            if (maximum >= max) {
+                maximum = max;
+            }
+            if (minimum <= min) {
+                minimum = min;
+            }
+        }
+    });
+    if (maximum !== null && minimum !== null && maximum >= minimum) {
+        return maximum;
+    }
+    return null;
 }
 function threadCutRejection(state, action) {
     switch (state.state) {

@@ -26,6 +26,10 @@ export const _documentation = {
         type: 'object',
         description: 'A dictionary of the last known events produced by contributors'
     },
+    eventTails: {
+        type: 'object',
+        description: 'A dictionary of the earliest know events produced by a contributor'
+    },
     eventList: {
         type: 'array',
         description: 'A list of events produced by the contributors, this is the thread'
@@ -143,8 +147,11 @@ export default class HashThread {
         this.eventIndex = 0;
         this.self = self;
         this.name = null;
-        // An array of event heads from the contributors.
+        // A dictionary of event heads from the contributors.
         this.eventHeads = {};
+        // A dictionary of event tails from the contributors.
+        // The olded events received from each contributor, still in the eventList.
+        this.eventTails = {};
         //List of events that have occurred, only contributors
         //may add to this list.
         this.eventList = [];
@@ -155,6 +162,7 @@ export default class HashThread {
         this.init();
     }
     init() {
+        this.initTailEvents();
         this.listen(UPDATEEVENT, this.handleUpdateEvent.bind(this));
         this.listen(RECEIVEEVENT, this.handleReceivedEvent.bind(this));
         this.listen(EVENTUPDATED, this.handleUpdatedEvent.bind(this));
@@ -182,6 +190,12 @@ export default class HashThread {
             this.sortEvents();
         }
     }
+    initTailEvents() {
+        var me = this;
+        this.contributors.map(t => {
+            me.eventTails[t] = 0;
+        })
+    }
     handleReceivedEvent(args) {
         if (args) {
             var { event, from } = args;
@@ -190,7 +204,7 @@ export default class HashThread {
                 this.raiseEvent(EVENTUPDATED, args);
 
                 this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, event.eventIndex);
-                
+
             }
         }
     }
@@ -198,7 +212,7 @@ export default class HashThread {
         if (evt) {
             var { event } = evt;
             // var contributors = HashEvent.getContributorsNeedingUpdates(event, this.self, this.contributors);
-           
+
         }
     }
     //Copy
@@ -220,11 +234,9 @@ export default class HashThread {
 
     static branchThread(thread, ops) {
         var { contributors, startTime } = ops;
-        console.log(thread);
         thread.eventList.filter(evt => {
             return !(HashEvent.hasReachedCompleted(evt, thread.contributors.length) && evt.time <= startTime);
         }).map(evt => {
-            console.log('applying contributors')
             return evt.applyContributors(contributors);
         });
         thread.contributors = contributors;
@@ -249,16 +261,33 @@ export default class HashThread {
     }
     getCompletedEvents() {
         var me = this;
+        var found = false;
+        var contribStreamIndexes = { ...me.eventTails };
 
         return me.eventList.filter(t => {
-            return HashEvent.hasReachedCompleted(t, me.contributors.length)
+            var res = HashEvent.hasReachedCompleted(t, me.contributors.length);
+            if (!res) {
+                found = true;
+            }
+            if (contribStreamIndexes.hasOwnProperty(t.eventSource)) {
+                if (contribStreamIndexes[t.eventSource] === t.eventIndex - 1) {
+                    contribStreamIndexes[t.eventSource] = t.eventIndex;
+                }
+                else {
+                    return false;
+                }
+            }
+            else {
+                return false;
+            }
+            return res && !found;
         });
     }
     getConsensusEvents() {
         var me = this;
-        return me.eventList.filter(t => {
-            return HashEvent.hasReachedConsensus(t, me.contributors)
-        });
+        var found = false;
+
+        return me.getCompletedEvents();
     }
     getNonConsensusEvents() {
         var me = this;
@@ -281,7 +310,7 @@ export default class HashThread {
     getNextPossibleDestinationsFor(evntId) {
         var me = this;
         var evnt = me.getEvent(evntId);
-        console.log(evntId);
+
         return HashEvent.getUncontacted(evnt, me.self);
     }
     _getTargeMinimum(dic) {
@@ -373,7 +402,6 @@ export default class HashThread {
 
     // Raise Event 
     raiseEvent(evt, args) {
-        console.log('-------- raising event -------------')
         this.listeners.filter(t => t._onEvent === evt).map(t => {
             t.handler(args);
         });
@@ -456,6 +484,13 @@ export default class HashThread {
             this._id = Util.GUID();
         }
         return this._id;
+    }
+    // Get the l
+    get time() {
+        if (this.eventList && this.eventList.length) {
+            return this.eventList[this.eventList.length - 1].time;
+        }
+        return null;
     }
 }
 

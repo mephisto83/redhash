@@ -35,10 +35,34 @@ export default class HashLine {
         var me = this;
         var thread = me.getThread(threadId);
         var sm = this.stateMatchines[threadId];
-        var events = thread.getEvents() || [];
+        var events = thread.getCompletedEvents() || [];
         var newstate = sm.action([...events.map(t => t.message)]);
 
-        return newstate;
+        return {
+            state: newstate,
+            time: events && events.length ? events[events.length - 1].time : null
+        };
+    }
+    getCutRanges(threadId) {
+        if (!threadId) {
+            throw 'no thread id ';
+        }
+
+        var me = this;
+        var thread = me.getThread(threadId);
+        var events = thread.getCompletedEvents() || [];
+        console.log('get cut ranges ----------------- ')
+        console.log(`${events.length}`)
+        if (events.length) {
+            return {
+                minimum: events[events.length - 1].time,
+                maximum: events[0].time
+            }
+        }
+        return {
+            minimum: 0,
+            maximum: 0
+        }
     }
 
     sendEvent(msg, type) {
@@ -52,17 +76,17 @@ export default class HashLine {
     }
     adjustContributors() {
         var newstate = this.processState(MEMBERSHIP_THREAD);
-        if (newstate) {
-            switch (newstate.state) {
+        if (newstate && newstate.state) {
+            switch (newstate.state.state) {
                 case MA.THREAD_CUT_APPROVED:
-                    this.stateMatchines[MEMBERSHIP_THREAD].adjustContributors(newstate);
-                    console.log(newstate);
+                    var { state } = newstate;
+                    this.stateMatchines[MEMBERSHIP_THREAD].adjustContributors(state);
                     var thread = this.getThread(EVENT_THREAD);
-                    if (thread.threadId === newstate.thread) {
+                    if (thread.threadId === state.thread) {
                         HashThread.branchThread(thread, {
-                            contributors: newstate.proposed,
-                            startTime: newstate.threadCutoff.time,
-                            state: newstate.storedState[EVENT_THREAD]
+                            contributors: state.proposed,
+                            startTime: state.threadCutoff.time,
+                            state: state.storedState[EVENT_THREAD]
                         });
                     }
                     break;
