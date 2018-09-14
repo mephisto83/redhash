@@ -234,14 +234,22 @@ export default class HashThread {
 
     static branchThread(thread, ops) {
         var { contributors, startTime } = ops;
-        thread.eventList.filter(evt => {
+        //Select events that will continue into the future.
+        var events = thread.eventList.filter(evt => {
             return !(HashEvent.hasReachedCompleted(evt, thread.contributors.length) && evt.time <= startTime);
         }).map(evt => {
             return evt.applyContributors(contributors);
         });
+        var result = thread.eventList.filter(t => {
+            return events.indexOf(t) === -1;
+        })
         thread.contributors = contributors;
+        thread.setEventList(events);
+        return result;
     }
-
+    setEventList(events) {
+        this.eventList = [...events];
+    }
     //Listene to events
     listen(_onEvent, handler) {
         var id = Util.GUID();

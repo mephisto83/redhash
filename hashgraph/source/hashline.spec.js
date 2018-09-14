@@ -262,7 +262,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -346,7 +347,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -462,7 +464,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -583,7 +586,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
 
@@ -705,7 +709,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
 
@@ -819,7 +824,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -974,7 +980,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -1050,13 +1057,12 @@ describe('HashLine', function () {
             assert.ok(newstate2.state.state === MA.THREAD_CUT_APPROVED, `${newstate2.state.state} !== ${MA.THREAD_CUT_APPROVAL}`);
             assert.ok(newstate.state.state === MA.THREAD_CUT_APPROVED);
 
+            //Events should be filtered away, and the state should be updated.
             line.adjustContributors();
 
             assert.ok(line);
             assert.ok(line.threads[EVENT_THREAD].thread.eventList);
-            console.log(line.threads[EVENT_THREAD].thread.eventList[0]);
-            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0]);
-            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0].contributors.length === 3, 'the contributor count is not right');
+
         }).then(done);
     });
 
@@ -1120,7 +1126,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -1203,11 +1210,6 @@ describe('HashLine', function () {
 
             assert.ok(line);
             assert.ok(line.threads[EVENT_THREAD].thread.eventList);
-            console.log('adjusted event');
-            console.log(line.threads[EVENT_THREAD].thread.eventList[0]);
-            console.log(line.threads[EVENT_THREAD].thread.eventList.length);
-            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0], ' missing at least one event');
-            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0].contributors.length === 2, 'the contributor count is not right');
 
             var eventstate = line.getThread(EVENT_THREAD).getEvents();
             var eventstate2 = line2.processState(EVENT_THREAD);
@@ -1289,7 +1291,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -1372,7 +1375,7 @@ describe('HashLine', function () {
     });
 
 
-    it('process state machines , approved, async, continue with 3rd line ', (done) => {
+    it.only('process state machines , approved, async, continue with 3rd line ', (done) => {
         var self = 'self';
         var person = 'person';
         var person2 = 'person2';
@@ -1430,7 +1433,8 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(person2, {
-                    thread: threadid
+                    thread: threadid,
+                    threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
         }).then(sendMesses).then(() => {
@@ -1513,19 +1517,16 @@ describe('HashLine', function () {
 
             assert.ok(line);
             assert.ok(line.threads[EVENT_THREAD].thread.eventList);
-            console.log('adjusted event');
-            console.log(line.threads[EVENT_THREAD].thread.eventList[0]);
-            console.log(line.threads[EVENT_THREAD].thread.eventList.length);
-            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0], ' missing at least one event');
-            assert.ok(line.threads[EVENT_THREAD].thread.eventList[0].contributors.length === 2, 'the contributor count is not right');
 
             var eventstate = line.processState(EVENT_THREAD);
             var eventstate2 = line2.processState(EVENT_THREAD);
-            console.log(eventstate);
-            console.log(eventstate2);
+
             console.log(line.getThread(EVENT_THREAD).getEvents().map(e => e.id));
             console.log(line2.getThread(EVENT_THREAD).getEvents().map(e => e.id));
-
+            console.log(line2.eventThread.eventList);
+            console.log(line2.stateMatchines[EVENT_THREAD]);
+            //Next step
+            //Setup the new line and pass the state.
             line3 = new HashLine(person2, person2, [...contributors, person2]);
             line3.initialize(threadid);
             line3.assignMachine(msmConstructor);

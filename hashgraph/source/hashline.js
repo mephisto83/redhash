@@ -43,6 +43,18 @@ export default class HashLine {
             time: events && events.length ? events[events.length - 1].time : null
         };
     }
+
+    processStateEvents(threadId, events) {
+        if (!threadId) {
+            throw 'no thread id ';
+        }
+        var me = this;
+        var thread = me.getThread(threadId);
+        var sm = this.stateMatchines[threadId];
+        var newstate = sm.action([...events.map(t => t.message)]);
+ 
+        sm.applyState(newstate);
+    }
     getCutRanges(threadId) {
         if (!threadId) {
             throw 'no thread id ';
@@ -81,13 +93,21 @@ export default class HashLine {
                 case MA.THREAD_CUT_APPROVED:
                     var { state } = newstate;
                     this.stateMatchines[MEMBERSHIP_THREAD].adjustContributors(state);
-                    var thread = this.getThread(EVENT_THREAD);
+                    console.log(` state.time : ${state.time}`);
+
+                    var thread = this.getThread(state.threadType);
                     if (thread.threadId === state.thread) {
-                        HashThread.branchThread(thread, {
+                        var completedEvents = HashThread.branchThread(thread, {
                             contributors: state.proposed,
-                            startTime: state.threadCutoff.time,
-                            state: state.storedState[EVENT_THREAD]
+                            startTime: state.time
                         });
+                        console.log('----------------------------------------------------------------------')
+                        console.log(completedEvents)
+                        console.log('----------------------------------------------------------------------')
+                        this.processStateEvents(state.threadType, completedEvents);
+                        // if (state.threadType && this.stateMatchines[state.threadType] && state.storedState) {
+                        //     this.stateMatchines[state.threadType].applyState(state.storedState[state.threadType]);
+                        // }
                     }
                     break;
             }

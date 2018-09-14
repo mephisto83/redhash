@@ -119,7 +119,7 @@ function updateThread(state, action) {
                 if (state.thread === action.thread) {
                     return {
                         ...state,
-                        state: action.type
+                        state: action.type,
                     }
                 }
                 else {
@@ -234,7 +234,7 @@ function getAgreeableTime(ranges) {
                 maximum = max;
             }
             if (minimum === null) {
-                minimum = null;
+                minimum = min;
             }
             if (maximum >= max) {
                 maximum = max;
@@ -308,13 +308,20 @@ function getThreadName(contributorRequest) {
     }
     return null;
 }
+function getThreadType(contributorRequest) {
+    if (contributorRequest && contributorRequest.connectionInfo && contributorRequest.connectionInfo._info) {
+        return contributorRequest.connectionInfo._info.threadType || null;
+    }
+    return null;
+}
 
 function addContributor(state, action) {
     switch (state.state) {
         case MA.ACCEPT_CONTRIBUTOR_ADD:
             if (state.contributors.find(t => t === action.from)) {
                 var _name = getContributorRequestName(state.contributorRequest);
-                var _affectedThread = getThreadName(state.contributorRequest)
+                var _affectedThread = getThreadName(state.contributorRequest);
+                var threadType = getThreadType(state.contributorRequest);
                 if (_name === action.name) {
                     return {
                         ...state,
@@ -322,6 +329,7 @@ function addContributor(state, action) {
                         contributorElection: [],
                         contributorRequest: null,
                         thread: _affectedThread,
+                        threadType,
                         proposed: [...(state.contributors || []).filter(t => t !== action.name), action.name]
                     }
                 }
