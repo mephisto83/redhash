@@ -1389,6 +1389,9 @@ describe('HashLine', function () {
         var tms = new TestMessageService(line.name);
         var tms3;
         var sendMesses = function () {
+            if (tms3) {
+                console.log('sending on tms3');
+            }
             var p = Promise.all([
                 tms.sendMessages(self),
                 tms2.sendMessages(person),
@@ -1514,25 +1517,63 @@ describe('HashLine', function () {
         }).then(sendMesses).then(() => {
             line.adjustContributors();
             line2.adjustContributors();
-
+            assert.ok(!line2.eventThread.eventList.length);
+            assert.ok(!line.eventThread.eventList.length);
+            var _transferredState = line.getState(MEMBERSHIP_THREAD);
+            var _transferredTails = line.getTails(EVENT_THREAD);
             assert.ok(line);
             assert.ok(line.threads[EVENT_THREAD].thread.eventList);
 
             var eventstate = line.processState(EVENT_THREAD);
             var eventstate2 = line2.processState(EVENT_THREAD);
 
-            console.log(line.getThread(EVENT_THREAD).getEvents().map(e => e.id));
-            console.log(line2.getThread(EVENT_THREAD).getEvents().map(e => e.id));
             console.log(line2.eventThread.eventList);
             console.log(line2.stateMatchines[EVENT_THREAD]);
+
             //Next step
             //Setup the new line and pass the state.
             line3 = new HashLine(person2, person2, [...contributors, person2]);
             line3.initialize(threadid);
             line3.assignMachine(msmConstructor);
             line3.assignMachine(csm, EVENT_THREAD);
+
+            line3.assignState(_transferredState.storedState, EVENT_THREAD);
+            line3.assignTails(_transferredTails, EVENT_THREAD);
+            console.log(line2.getState(EVENT_THREAD))
             tms3 = new TestMessageService(line3.name);
             tms3.assignLine(line3);
+
+        }).then(sendMesses).then(() => {
+            line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' }, EVENT_THREAD);
+            line3.sendEvent({ type: CSM.UPDATE, name: 'LINE3', value: 'an event 3' }, EVENT_THREAD);
+        }).then(sendMesses).then(() => {
+        }).then(sendMesses).then(() => {
+            var l3state = line3.getState(EVENT_THREAD);
+            assert.ok(l3state);
+            assert.ok(line3.eventThread.eventList.length);
+            assert.ok(line2.eventThread.eventList.length);
+            assert.ok(line.eventThread.eventList.length);
+
+
+            console.log(line3.eventThread.eventList.length);
+            console.log(line2.eventThread.eventList.length);
+            console.log(line.eventThread.eventList.length);
+
+            console.log(line3.eventThread.eventTails);
+            console.log(line2.eventThread.eventTails);
+            console.log(line.eventThread.eventTails);
+
+
+            line.applyThread(EVENT_THREAD);
+            line2.applyThread(EVENT_THREAD);
+            line3.applyThread(EVENT_THREAD);
+
+            console.log(line.eventThread.eventList);
+            console.log(line.contributors);
+            console.log(line3.getState(EVENT_THREAD));
+            console.log(line2.getState(EVENT_THREAD));
+            console.log(line.getState(EVENT_THREAD));
+            console.log(line2.eventThread.eventList);
         }).then(() => {
             done();
         });

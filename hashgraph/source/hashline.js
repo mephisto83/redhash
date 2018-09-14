@@ -28,6 +28,26 @@ export default class HashLine {
 
         this.stateMatchines[thread] = stateMachineConstructor();
     }
+    assignState(state, thread) {
+        console.log('assign state');
+        if (this.stateMatchines && this.stateMatchines[thread]) {
+            console.log(thread);
+            console.log(state);
+            this.stateMatchines[thread].applyState(state[thread].state);
+        } else {
+            throw 'no state assigned';
+        }
+    }
+    assignTails(tails, thread) {
+        var _thread = this.getThread(thread);
+        _thread.eventTails = tails;
+    }
+    applyThread(thread) {
+        console.log('apply thread');
+        var { state, events } = this.processState(thread);
+        console.log(events);
+        this.assignState({ [thread]: { state } }, thread);
+    }
     processState(threadId) {
         if (!threadId) {
             throw 'no thread id ';
@@ -40,6 +60,7 @@ export default class HashLine {
 
         return {
             state: newstate,
+            events,
             time: events && events.length ? events[events.length - 1].time : null
         };
     }
@@ -52,7 +73,7 @@ export default class HashLine {
         var thread = me.getThread(threadId);
         var sm = this.stateMatchines[threadId];
         var newstate = sm.action([...events.map(t => t.message)]);
- 
+
         sm.applyState(newstate);
     }
     getCutRanges(threadId) {
@@ -63,8 +84,7 @@ export default class HashLine {
         var me = this;
         var thread = me.getThread(threadId);
         var events = thread.getCompletedEvents() || [];
-        console.log('get cut ranges ----------------- ')
-        console.log(`${events.length}`)
+
         if (events.length) {
             return {
                 minimum: events[events.length - 1].time,
@@ -86,6 +106,13 @@ export default class HashLine {
             me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors));
         }
     }
+    getState(thread) {
+        var newstate = this.processState(thread);
+        return newstate.state;
+    }
+    getTails(thread) {
+        return { ...this.getThread(thread).eventTails };
+    }
     adjustContributors() {
         var newstate = this.processState(MEMBERSHIP_THREAD);
         if (newstate && newstate.state) {
@@ -93,21 +120,15 @@ export default class HashLine {
                 case MA.THREAD_CUT_APPROVED:
                     var { state } = newstate;
                     this.stateMatchines[MEMBERSHIP_THREAD].adjustContributors(state);
-                    console.log(` state.time : ${state.time}`);
 
                     var thread = this.getThread(state.threadType);
                     if (thread.threadId === state.thread) {
                         var completedEvents = HashThread.branchThread(thread, {
-                            contributors: state.proposed,
+                            contributors: [...state.proposed],
                             startTime: state.time
                         });
-                        console.log('----------------------------------------------------------------------')
-                        console.log(completedEvents)
-                        console.log('----------------------------------------------------------------------')
+                        this.contributors = [...state.proposed]
                         this.processStateEvents(state.threadType, completedEvents);
-                        // if (state.threadType && this.stateMatchines[state.threadType] && state.storedState) {
-                        //     this.stateMatchines[state.threadType].applyState(state.storedState[state.threadType]);
-                        // }
                     }
                     break;
             }

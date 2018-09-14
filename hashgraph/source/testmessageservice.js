@@ -22,7 +22,6 @@ export default class TestMessageService extends IMessageService {
     }
     static globalStep(fail) {
         services.map(service => {
-
             service.step(fail, service.id);
         });
     }

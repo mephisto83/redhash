@@ -243,9 +243,27 @@ export default class HashThread {
         var result = thread.eventList.filter(t => {
             return events.indexOf(t) === -1;
         })
+
+        thread.eventTails = thread.extractEventTails(result, contributors);
         thread.contributors = contributors;
+
         thread.setEventList(events);
+
         return result;
+    }
+    extractEventTails(events, contributors) {
+        var tails = { ...this.eventTails };
+        contributors.map(c => {
+            if (!tails.hasOwnProperty(c)) {
+                tails[c] = 0;
+            }
+        })
+        events.map(evt => {
+            if (tails.hasOwnProperty(evt.eventSource) && tails[evt.eventSource] < evt.eventIndex) {
+                tails[evt.eventSource] = evt.eventIndex;
+            }
+        })
+        return tails;
     }
     setEventList(events) {
         this.eventList = [...events];
