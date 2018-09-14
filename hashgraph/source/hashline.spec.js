@@ -1539,7 +1539,7 @@ describe('HashLine', function () {
 
             line3.assignState(_transferredState.storedState, EVENT_THREAD);
             line3.assignTails(_transferredTails, EVENT_THREAD);
-            console.log(line2.getState(EVENT_THREAD))
+
             tms3 = new TestMessageService(line3.name);
             tms3.assignLine(line3);
 
@@ -1553,11 +1553,6 @@ describe('HashLine', function () {
             assert.ok(line3.eventThread.eventList.length);
             assert.ok(line2.eventThread.eventList.length);
             assert.ok(line.eventThread.eventList.length);
-
-
-            console.log(line3.eventThread.eventList.length);
-            console.log(line2.eventThread.eventList.length);
-            console.log(line.eventThread.eventList.length);
 
             console.log(line3.eventThread.eventTails);
             console.log(line2.eventThread.eventTails);
