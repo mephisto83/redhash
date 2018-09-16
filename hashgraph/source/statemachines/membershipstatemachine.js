@@ -38,7 +38,7 @@ export default class MembershipStateMachine {
                     break;
                 case MA.ACCEPT_CONTRIBUTOR_ADD:
                 case MA.REJECT_CONTRIBUTOR_ADD:
-                    tempstate = rejectContributorAdd(tempstate, action);
+                    tempstate = rejectOrAcceptContributorAdd(tempstate, action);
                     break;
                 case MA.REJECT_CONTRIBUTOR_REMOVE:
                 case MA.ACCEPT_CONTRIBUTOR_REMOVE:
@@ -56,11 +56,9 @@ export default class MembershipStateMachine {
                 case MA.THREAD_CUT_OFF:
                     tempstate = threadCutOff(tempstate, action);
                     break;
-                case MA.THREAD_CUT_APPROVAL:
-                    tempstate = threadCutApproval(tempstate, action);
-                    break;
                 case MA.THREAD_CUT_REJECT:
-                    tempstate = threadCutRejection(tempstate, action);
+                case MA.THREAD_CUT_APPROVAL:
+                    tempstate = threadCutApprovalOrRejection(tempstate, action);
                     break;
 
             }
@@ -82,13 +80,25 @@ function initializeState(state, action) {
                     ...state,
                     state: action.type,
                     contributorElection: [],
-                    connectionInfo: null
+                    connectionInfo: null,
+                    votes: {},
+                    threadCutoff: {},
+                    ranges: {},
+                    contributorRequest: {}
                 };
 
         }
     }
 
-    return { ...state }
+    return {
+        ...state,
+        contributorElection: [],
+        connectionInfo: null,
+        votes: {},
+        threadCutoff: {},
+        ranges: {},
+        contributorRequest: {}
+    }
 }
 
 function requestContributorAdd(state, action) {
@@ -113,6 +123,7 @@ function requestContributorAdd(state, action) {
 function updateThread(state, action) {
     switch (state.state) {
         case MA.ADD_CONTRIBUTOR:
+        case MA.REMOVE_CONTRIBUTOR:
         case MA.THREAD_CUT_REJECTED:
             var name = action.from;
             if (name && state.contributors.find(t => t === name)) {
@@ -120,6 +131,7 @@ function updateThread(state, action) {
                     return {
                         ...state,
                         state: action.type,
+                        contributorElection: []
                     }
                 }
                 else {
@@ -140,21 +152,15 @@ function threadCutOff(state, action) {
             var name = action.from;
             if (name && state.contributors.find(t => t === name)) {
                 if (action.thread === state.thread) {
-                    if (!isNaN(action.time)) {
-                        console.log('-------- thread cutoff success')
-                        return {
-                            ...state,
-                            state: action.type,
-                            storedState: { ...(state.storedState || {}), ...action.storedState },
-                            vote: {},
-                            threadCutoff: {
-                                ...(state.threadCutoff || {}),
-                                time: action.time
-                            }
+                    console.log('-------- thread cutoff success')
+                    return {
+                        ...state,
+                        state: action.type,
+                        storedState: { ...(state.storedState || {}), ...action.storedState },
+                        votes: {},
+                        threadCutoff: {
+                            ...(state.threadCutoff || {})
                         }
-                    }
-                    else {
-                        console.log('------------ time is not a number')
                     }
                 }
                 else {
@@ -172,36 +178,47 @@ function threadCutOff(state, action) {
     }
     return { ...state };
 }
-function threadCutApproval(state, action) {
+function threadCutApprovalOrRejection(state, action) {
     switch (state.state) {
         case MA.THREAD_CUT_OFF:
             var name = action.from;
             if (name && state.contributors.find(t => t === name)) {
-                var votes = {
-                    ...(state.votes || {}),
-                    [name]: true
-                };
-                console.log(votes);
+                var contributorElection = [...(state.contributorElection || []).filter(t => {
+                    return t.from !== action.from
+                }), {
+                    from: action.from,
+                    reject: MA.THREAD_CUT_REJECT === action.type ? true : false,
+                    accept: MA.THREAD_CUT_APPROVAL === action.type ? true : false
+                }];
+
                 var update = {
                     ...state,
-                    votes,
                     threadCutoff: {
                         ...(state.threadCutoff || {})
                     },
+                    contributorElection,
                     ranges: {
                         ...(state.ranges || {}),
                         [name]: action.range
                     }
                 };
-
-                var all = !state.contributors.find(t => {
-                    return votes[t] === undefined;
+                var participants = state.proposed.length < state.contributors.length ? state.proposed : state.contributors;
+                var all = !(participants).find(t => {
+                    return contributorElection.find(x => x.from === t) === undefined;
                 });
-                var afalse = !!state.contributors.find(t => {
-                    return votes[t] === false;
+
+                if (!all) {
+                    console.log('missing voters ' + participants);
+                    console.log(state.proposed);
+                }
+
+                var afalse = !!participants.find(t => {
+                    console.log(contributorElection);
+                    console.log(t);
+                    var vote = contributorElection.find(x => x.from === t);
+                    return !vote || vote.reject === true;
                 });
                 if (all && !afalse) {
-
                     var ranges = update.ranges;
                     console.log(update);
                     console.log(action.range);
@@ -258,9 +275,19 @@ function threadCutRejection(state, action) {
                     ...(state.votes || {}),
                     [name]: false
                 };
+
+                var contributorElection = [...(state.contributorElection || []).filter(t => {
+                    return t.from !== action.from
+                }), {
+                    from: action.from,
+                    reject: true,
+                    accept: false
+                }];
+
                 var update = {
                     ...state,
                     votes,
+                    contributorElection,
                     threadCutoff: {
                         ...(state.threadCutoff || {})
                     }
@@ -289,7 +316,10 @@ function requestContributorRemove(state, action) {
                 return {
                     ...state,
                     state: action.type,
-                    contributorRequest: action
+                    thread: action.thread,
+                    threadType: action.threadType,
+                    contributorRequest: action,
+                    contributorElection: []
                 }
             }
     }
@@ -326,7 +356,6 @@ function addContributor(state, action) {
                     return {
                         ...state,
                         state: action.type,
-                        contributorElection: [],
                         contributorRequest: null,
                         thread: _affectedThread,
                         threadType,
@@ -351,6 +380,7 @@ function rejectContributorRemove(state, action) {
     switch (state.state) {
         case MA.REQUEST_CONTRIBUTOR_REMOVE:
             if (state.contributorRequest && state.contributorRequest.name === action.name && action.from !== state.contributorRequest.name) {
+
                 var contributorElection = [...(state.contributorElection || []).filter(t => {
                     return t.from !== action.from
                 }), {
@@ -358,15 +388,24 @@ function rejectContributorRemove(state, action) {
                     reject: action.type === MA.REJECT_CONTRIBUTOR_REMOVE,
                     accept: action.type === MA.ACCEPT_CONTRIBUTOR_REMOVE
                 }];
+                console.log('contributorElection');
+                console.log(contributorElection);
+
                 let isrejected;
                 let contributors = state.contributors.filter(t => t !== state.contributorRequest.name);
                 if (contributorElection.length === contributors.length) {
                     isrejected = contributorElection.filter(t => t.reject).length > contributorElection.filter(t => t.accept).length;
+                    console.log('enough for decision');
+                }
+                else {
+                    console.log('not enough for decision');
                 }
                 let update = {};
                 if (isrejected !== undefined) {
                     update = {
-                        state: isrejected ? MA.REJECT_CONTRIBUTOR_REMOVE : MA.ACCEPT_CONTRIBUTOR_REMOVE
+                        contributorRequest: null,
+                        proposed: isrejected ? null : contributors,
+                        state: isrejected ? MA.REJECT_CONTRIBUTOR_REMOVE : MA.REMOVE_CONTRIBUTOR
                     };
                 }
                 return {
@@ -380,7 +419,7 @@ function rejectContributorRemove(state, action) {
     return { ...state };
 }
 
-function rejectContributorAdd(state, action) {
+function rejectOrAcceptContributorAdd(state, action) {
     switch (state.state) {
         case MA.REQUEST_CONTRIBUTOR_ADD:
             if (state.contributors.find(t => t === action.from)) {

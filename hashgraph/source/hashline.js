@@ -29,13 +29,10 @@ export default class HashLine {
         this.stateMatchines[thread] = stateMachineConstructor();
     }
     assignState(state, thread) {
-        console.log('assign state');
-        if (this.stateMatchines && this.stateMatchines[thread]) {
-            console.log(thread);
-            console.log(state);
+        if (this.stateMatchines && this.stateMatchines[thread] && state && state[thread] && state[thread].state) {
             this.stateMatchines[thread].applyState(state[thread].state);
         } else {
-            throw 'no state assigned';
+            console.warn('no state assigned');
         }
     }
     assignTails(tails, thread) {
@@ -43,28 +40,10 @@ export default class HashLine {
         _thread.eventTails = tails;
     }
     applyThread(thread) {
-        console.log('apply thread');
         var { state, events } = this.processState(thread);
-        console.log(events);
         this.assignState({ [thread]: { state } }, thread);
+        this.getThread(thread).applyThread();
     }
-    processState(threadId) {
-        if (!threadId) {
-            throw 'no thread id ';
-        }
-        var me = this;
-        var thread = me.getThread(threadId);
-        var sm = this.stateMatchines[threadId];
-        var events = thread.getCompletedEvents() || [];
-        var newstate = sm.action([...events.map(t => t.message)]);
-
-        return {
-            state: newstate,
-            events,
-            time: events && events.length ? events[events.length - 1].time : null
-        };
-    }
-
     processStateEvents(threadId, events) {
         if (!threadId) {
             throw 'no thread id ';
@@ -72,9 +51,11 @@ export default class HashLine {
         var me = this;
         var thread = me.getThread(threadId);
         var sm = this.stateMatchines[threadId];
-        var newstate = sm.action([...events.map(t => t.message)]);
+        if (sm) {
+            var newstate = sm.action([...events.map(t => t.message)]);
 
-        sm.applyState(newstate);
+            sm.applyState(newstate);
+        }
     }
     getCutRanges(threadId) {
         if (!threadId) {
@@ -100,10 +81,10 @@ export default class HashLine {
     sendEvent(msg, type) {
         var me = this;
         if (me.membershipThread && type === ET.MEMBERSHIP) {
-            me.membershipThread.sendEvent(new HashEvent(msg, type, this.contributors));
+            return me.membershipThread.sendEvent(new HashEvent(msg, type, this.contributors));
         }
         else if (me.eventThread) {
-            me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors));
+            return me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors));
         }
     }
     getState(thread) {
@@ -118,7 +99,7 @@ export default class HashLine {
         if (newstate && newstate.state) {
             switch (newstate.state.state) {
                 case MA.THREAD_CUT_APPROVED:
-                    var { state } = newstate;
+                    var { state, events, time } = newstate;
                     this.stateMatchines[MEMBERSHIP_THREAD].adjustContributors(state);
 
                     var thread = this.getThread(state.threadType);
@@ -127,28 +108,75 @@ export default class HashLine {
                             contributors: [...state.proposed],
                             startTime: state.time
                         });
-                        this.contributors = [...state.proposed]
+                        this.contributors = [...state.proposed];
+                        thread.eventTails = thread.extractEventTails(completedEvents, state.proposed);
                         this.processStateEvents(state.threadType, completedEvents);
+                        var membershipThread = this.getThread(MEMBERSHIP_THREAD);
+                        membershipThread.eventTails = membershipThread.extractEventTails(events, state.proposed);
                     }
                     break;
             }
         }
     }
+
+    processState(threadId) {
+        if (!threadId) {
+            throw 'no thread id ';
+        }
+        var me = this;
+        var thread = me.getThread(threadId);
+        var sm = this.stateMatchines[threadId];
+        var events = thread.getCompletedEvents() || [];
+        var newstate = sm.action([...events.map(t => t.message)]);
+
+        return {
+            state: newstate,
+            events,
+            time: events && events.length ? events[events.length - 1].time : null
+        };
+    }
+
+
     receiveEvent(msg, from) {
         var me = this;
         var reply = null;
-
-        var hashmsg = HashEvent.create(msg);
+        var hashmsg;
 
         switch (msg._type) {
             case ET.MEMBERSHIP:
+                hashmsg = HashEvent.create(msg);
                 reply = me.membershipThread.receiveEvent(hashmsg, from);
                 break;
+            case ET.SEND_MESSAGE:
+
+                console.log('received - sent message -----------------------------------------------------------------');
+                console.log(msg._type);
+                reply = me.handleSentMessage(msg);
+                break;
             default:
+                hashmsg = HashEvent.create(msg);
                 reply = me.eventThread.receiveEvent(hashmsg, from);
                 break;
         }
         return reply;
+    }
+    handleSentMessage(msg) {
+        if (msg && msg.message) {
+            switch (msg.message.type) {
+                case ET.JOIN:
+
+                    var {
+                        state,
+                        thread,
+                        threadType,
+                        tails
+                    } = msg.message;
+
+                    this.assignState(state, threadType);
+                    this.assignTails(tails, threadType);
+                    break;
+            }
+        }
     }
     sentEventSuccessfully(from, evnt) {
         var me = this;
@@ -254,6 +282,10 @@ export default class HashLine {
         });
     }
 
+    sendMessage(message) {
+        message._type = ET.SEND_MESSAGE;
+        this.raiseEvent(ET.SEND_MESSAGE, message);
+    }
 
     getThread(id) {
         if (this.threads && this.threads[id])

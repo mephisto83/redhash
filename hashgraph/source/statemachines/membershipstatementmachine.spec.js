@@ -422,6 +422,37 @@ describe('MembershipStateMachine', function () {
         assert.equal(machine.state.state, undefined);
     });
 
+
+    it('can initialize => request contributor remove => reject removal of contributor => initial', function () {
+        var machine = new MembershipStateMachine({
+            contributors: [self, person, person2]
+        });
+        var state = machine.action([...[MA.INITIALIZE_STATE].map(t => { return { type: t } }), {
+            type: MA.REQUEST_CONTRIBUTOR_REMOVE,
+            name: person,
+            thread: 'thread',
+            threadType: 'EVENT_THREAD',
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_REMOVE,
+            from: self,
+            name: person
+        }, {
+            type: MA.ACCEPT_CONTRIBUTOR_REMOVE,
+            from: person2,
+            name: person
+        }]);
+
+        //the person getting removed doesnt get a vote that counts
+
+        assert.equal(state.state, MA.REMOVE_CONTRIBUTOR);
+        console.log(state.contributorElection);
+        assert.equal(state.contributorElection.length, 2);
+        assert.ok(state.thread);
+        assert.ok(state.threadType);
+        assert.equal(state.contributors.length, 3);
+        assert.equal(machine.state.state, undefined);
+    });
+
     it('can initialize => request contributor remove => reject removal of contributor => initial', function () {
         var machine = new MembershipStateMachine({
             contributors: [self, person, person2]

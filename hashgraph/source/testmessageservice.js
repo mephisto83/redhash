@@ -2,7 +2,7 @@ import * as util from './util';
 import { IMessageService } from './interfaces';
 import { strarse } from './testutil';
 import * as HThread from './hashthread';
-
+import ET from './eventtypes';
 export default class TestMessageService extends IMessageService {
     constructor(id) {
         super();
@@ -12,6 +12,7 @@ export default class TestMessageService extends IMessageService {
         this.id = id;
         services.push(this);
         this.lines = {};
+        this.sendingMessagePromise = Promise.resolve();
     }
     // allows a hashgraph  to be attached
     attach(hg) {
@@ -132,6 +133,7 @@ export default class TestMessageService extends IMessageService {
     }
     assignLine(line, id = null) {
         id = id || util.GUID();
+        var me = this;
         this.onmessage((message, to, from) => {
             var mess = strarse(message);
             return line.receiveEvent(mess, from);
@@ -143,6 +145,15 @@ export default class TestMessageService extends IMessageService {
 
         line.listen(HThread.SENDEVENT, (event) => {
 
+        });
+        line.listen(ET.SEND_MESSAGE, message => {
+            if (message && message.from && message.to) {
+                this.sendingMessagePromise = this.sendingMessagePromise.then(() => {
+                    return me.send(message, message.to, message.from);
+                }).catch(e => {
+                    console.log(e);
+                })
+            }
         });
 
         this.lines[id] = line;

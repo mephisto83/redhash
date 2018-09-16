@@ -1,3 +1,5 @@
 export default {
-    MEMBERSHIP: 'MEMBERSHIP'
+    MEMBERSHIP: 'MEMBERSHIP',
+    SEND_MESSAGE: 'SEND_MESSAGE',
+    JOIN: 'JOIN'
 }

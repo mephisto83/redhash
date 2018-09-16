@@ -232,6 +232,21 @@ export default class HashThread {
         return new HashThread(contributors || [self], self, threadid);
     }
 
+    applyThread() {
+        var thread = this;
+        var events = thread.eventList.filter(evt => {
+            return !(HashEvent.hasReachedCompleted(evt, thread.contributors.length));
+        });
+
+        var result = thread.eventList.filter(t => {
+            return events.indexOf(t) === -1;
+        });
+
+        var contributors = this.contributors;
+        thread.eventTails = thread.extractEventTails(result, contributors);
+        thread.setEventList(events);
+    }
+
     static branchThread(thread, ops) {
         var { contributors, startTime } = ops;
         //Select events that will continue into the future.
@@ -244,7 +259,6 @@ export default class HashThread {
             return events.indexOf(t) === -1;
         })
 
-        thread.eventTails = thread.extractEventTails(result, contributors);
         thread.contributors = contributors;
 
         thread.setEventList(events);
@@ -291,7 +305,7 @@ export default class HashThread {
         var contribStreamIndexes = { ...me.eventTails };
 
         return me.eventList.filter(t => {
-            var res = HashEvent.hasReachedCompleted(t, me.contributors.length);
+            var res = HashEvent.hasReachedCompleted(t);
             if (!res) {
                 found = true;
             }
