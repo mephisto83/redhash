@@ -42,7 +42,7 @@ export default class MembershipStateMachine {
                     break;
                 case MA.REJECT_CONTRIBUTOR_REMOVE:
                 case MA.ACCEPT_CONTRIBUTOR_REMOVE:
-                    tempstate = rejectContributorRemove(tempstate, action);
+                    tempstate = rejectOrAcceptContributorRemove(tempstate, action);
                     break;
                 case MA.ADD_CONTRIBUTOR:
                     tempstate = addContributor(tempstate, action);
@@ -220,8 +220,6 @@ function threadCutApprovalOrRejection(state, action) {
                 });
                 if (all && !afalse) {
                     var ranges = update.ranges;
-                    console.log(update);
-                    console.log(action.range);
                     var time = getAgreeableTime(ranges);
                     if (time === null) {
                         update = { ...update, state: MA.THREAD_CANT_CUT_NO_AGREEABLE_TIME };
@@ -229,6 +227,9 @@ function threadCutApprovalOrRejection(state, action) {
                     else {
                         update = { ...update, time, state: MA.THREAD_CUT_APPROVED };
                     }
+                }
+                else if (all) {
+                    update = { ...update, state: MA.THREAD_CUT_REJECTED };
                 }
 
                 return update;
@@ -376,7 +377,7 @@ function removeContributor(state, action) {
     return { ...state };
 }
 
-function rejectContributorRemove(state, action) {
+function rejectOrAcceptContributorRemove(state, action) {
     switch (state.state) {
         case MA.REQUEST_CONTRIBUTOR_REMOVE:
             if (state.contributorRequest && state.contributorRequest.name === action.name && action.from !== state.contributorRequest.name) {

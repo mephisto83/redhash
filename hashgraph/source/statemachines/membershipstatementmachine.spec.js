@@ -287,7 +287,7 @@ describe('MembershipStateMachine', function () {
         }]);
 
         assert.equal(state.state, MA.ADD_CONTRIBUTOR);
-        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributorElection.length, 1);
         assert.equal(state.contributors.length, 1);
         assert.equal(state.proposed.length, 2);
         assert.equal(machine.state.state, undefined);
@@ -515,7 +515,6 @@ describe('MembershipStateMachine', function () {
         });
         var state = machine.action([...[MA.INITIALIZE_STATE].map(t => { return { type: t } }), {
             type: MA.REQUEST_CONTRIBUTOR_REMOVE,
-            // Need to have all the information required, to make a connection between clients
             name: person
         }, {
             type: MA.REJECT_CONTRIBUTOR_REMOVE,
@@ -523,10 +522,6 @@ describe('MembershipStateMachine', function () {
             name: person
         }, {
             type: MA.ACCEPT_CONTRIBUTOR_ADD,
-            from: person2,
-            name: person
-        }, {
-            type: MA.INITIALIZE_STATE,
             from: person2,
             name: person
         }]);
@@ -574,7 +569,7 @@ describe('MembershipStateMachine', function () {
         }]);
 
         assert.equal(state.state, MA.THREAD_CUT_APPROVED);
-        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributorElection.length, 1);
         assert.equal(state.contributors.length, 1);
         assert.equal(machine.state.state, undefined);
     });
@@ -618,7 +613,7 @@ describe('MembershipStateMachine', function () {
         }]);
 
         assert.equal(state.state, MA.THREAD_CUT_OFF);
-        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributorElection.length, 1);
         assert.equal(state.contributors.length, 2);
         assert.equal(machine.state.state, undefined);
     });
@@ -657,7 +652,7 @@ describe('MembershipStateMachine', function () {
         }]);
 
         assert.equal(state.state, MA.THREAD_CUT_REJECTED);
-        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributorElection.length, 1);
         assert.equal(state.contributors.length, 1);
         assert.equal(machine.state.state, undefined);
     });
@@ -700,7 +695,7 @@ describe('MembershipStateMachine', function () {
         }]);
 
         assert.equal(state.state, MA.THREAD_CUT_OFF);
-        assert.equal(state.contributorElection.length, 0);
+        assert.equal(state.contributorElection.length, 1);
         assert.equal(state.contributors.length, 2);
         assert.equal(machine.state.state, undefined);
     });

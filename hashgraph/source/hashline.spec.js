@@ -1777,7 +1777,7 @@ describe('HashLine', function () {
     });
 
 
-    it.only('process state machines , approved, async, continue with 3rd line , sent init to 3rd line, remove a person', (done) => {
+    it('process state machines , approved, async, continue with 3rd line , sent init to 3rd line, remove a person', (done) => {
         var self = 'self';
         var person = 'person';
         var person2 = 'person2';
