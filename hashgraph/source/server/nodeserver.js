@@ -2,18 +2,41 @@ let http = require('http');
 var net = require('net');
 let os = require('os');
 import ServerSocket from './serversocket';
-
+export const LISTENING = 'listening';
 export default class NodeServer {
 
-    constructor(config) {
+    constructor(config, skipCreate) {
         config = Object.assign({ port: 5123 }, config);
         this.sockets = [];
         this.socketServers = [];
         this.handlers = [];
+        this.listeners = [];
+        this.config = config;
         this.addDefaultHandler();
-        this.createServers(config);
+        if (!skipCreate)
+            this.createServers(config);
         this.poweredBy = 'red-hash';
 
+    }
+    close() {
+        if (this.servers) {
+            this.servers.map(server => {
+                if (server.listening)
+                    server.close(function (t) {
+                        console.log('closed server?')
+                        console.log(t);
+                    });
+                server.unref();
+            })
+        }
+        if (this.socketServers) {
+            this.socketServers.map(server => {
+                server.close();
+            })
+        }
+    }
+    get serverCount() {
+        return (this.servers || []).length;
     }
     createServers(config) {
         var me = this;
@@ -29,9 +52,20 @@ export default class NodeServer {
             try {
                 var server = http.createServer(function (req, res) {
                     me.handleRequest(req, res, addressInfo, filteredAddress, config);
-
                 });
-                server.listen(config.port, addressInfo.address);
+
+                server.listen(config.port, addressInfo.address, (res) => {
+                    me.raiseEvent(LISTENING, { server, res })
+                });
+                server.on('error', (e) => {
+                    if (e.code === 'EADDRINUSE') {
+                        console.log('Address in use');
+                        setTimeout(() => {
+                            server.close();
+                            // server.listen(PORT, HOST);
+                        }, 1000);
+                    }
+                });
                 return server;
             }
             catch (e) {
@@ -39,6 +73,14 @@ export default class NodeServer {
             }
         }).filter(t => t);
 
+    }
+    raiseEvent(evt, args) {
+        this.listeners.filter(t => t.type === evt).map(t => {
+            t.action(evt, args);
+        })
+    }
+    addListener(evt, handler) {
+        this.listeners.push({ type: evt, action: handler });
     }
     addHandler(matchFunc, handler) {
         this.handlers.unshift({ match: matchFunc, handler })
@@ -115,6 +157,7 @@ export default class NodeServer {
         return true;
 
     }
+
     renderLinks(addresses, port) {
         var res = `<script>function callpost(url){
             var data ={id:'addressofendpoint'};
@@ -154,6 +197,7 @@ export default class NodeServer {
 
         return res;
     }
+
     static validate(address) {
         //test ipv4
         var ok = false;
@@ -178,36 +222,68 @@ export default class NodeServer {
 
         return ok;
     }
-    static createServer(config) {
-        return new NodeServer(config);
+
+    static createServer(config, skip) {
+        return new NodeServer(config, skip);
     }
+
     createSocketServer(addressInfo, port, callback) {
-        var me = this;
-        var server = net.createServer(function (socket) {
-            if (callback) {
-                callback(socket);
-                me.sockets.push(socket);
-                serverSocket.setSocket(socket);
-            }
-        });
-        server.listen(port, addressInfo.address);
-        var serverSocket = new ServerSocket({
-            server,
-            address: addressInfo.address,
-            port
-        });
-        me.socketServers.push(serverSocket);
+        return new Promise((resolve, fail) => {
+            var me = this;
+            var server = net.createServer(function (socket) {
+                if (callback) {
+                    callback(socket);
+                    me.sockets.push(socket);
+                    serverSocket.setSocket(socket);
+                }
+            });
+
+            server.listen(port, addressInfo.address);
+            var serverSocket = new ServerSocket({
+                server,
+                address: addressInfo.address,
+                port
+            });
+            me.socketServers.push(serverSocket);
+            return serverSocket;
+        })
     }
-    createSocket(address, port) {
+    connectSocket(address, port, callback) {
         var me = this;
-        var socket = net.createConnection(port, address);
+        // var socket = net.createConnection(port, address);
+        var socket = new net.Socket();
         var serverSocket = new ServerSocket({
             address,
             port
         });
         serverSocket.setSocket(socket);
+        serverSocket.connect(port, address, callback);
         me.socketServers.push(serverSocket);
+
+        return serverSocket;
     }
+
+    createServer(address, port) {
+        var me = this;
+        var serverSocket = new ServerSocket({
+            address,
+            port
+        });
+
+        var server = net.createServer(function (socket) {
+            // socket.write('Echo server\r\n');
+            // socket.pipe(socket);
+            serverSocket.setSocket(socket);
+        });
+        me.socketServers.push(serverSocket);
+
+        server.listen(port, address);
+        serverSocket.setServer(server);
+
+        return serverSocket;
+
+    }
+
     static getIpAddress() {
         var ifaces = os.networkInterfaces();
         var result = []
