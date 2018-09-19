@@ -24,16 +24,21 @@ describe('Node Server', function () {
         })
     });
 
-    it('can create socket server ', () => {
+    it('can create socket server ', (done) => {
         var _server = NodeServer.createServer(null, true);
         var c = 0;
 
-        var serverSocket = _server.createSocket('192.168.1.115', 1423 + c);
+        var serverSocket = _server.createServer('192.168.1.115', 1323, () => {
+            _server.close();
+            
+        });
         assert.ok(serverSocket);
-
+        _server.close();
+        serverSocket.close();
+        done();    
     });
 
-    it.only('can listen to a socket', (done) => {
+    it('can listen to a socket', (done) => {
 
         var _server = NodeServer.createServer(null, true);
         var _server2 = NodeServer.createServer(null, true);

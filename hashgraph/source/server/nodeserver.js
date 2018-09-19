@@ -21,17 +21,19 @@ export default class NodeServer {
     close() {
         if (this.servers) {
             this.servers.map(server => {
-                if (server.listening)
+                if (server.listening){
                     server.close(function (t) {
                         console.log('closed server?')
                         console.log(t);
-                    });
+                    });}
+                    console.log('--- closing server')
                 server.unref();
             })
         }
         if (this.socketServers) {
             this.socketServers.map(server => {
                 server.close();
+                console.log('--- closing socket server')
             })
         }
     }
@@ -263,7 +265,7 @@ export default class NodeServer {
         return serverSocket;
     }
 
-    createServer(address, port) {
+    createServer(address, port, callback) {
         var me = this;
         var serverSocket = new ServerSocket({
             address,
@@ -271,17 +273,19 @@ export default class NodeServer {
         });
 
         var server = net.createServer(function (socket) {
-            // socket.write('Echo server\r\n');
-            // socket.pipe(socket);
+            console.log('---------------- create server -----------------')
             serverSocket.setSocket(socket);
+            if (callback) {
+                callback();
+            }
         });
+
         me.socketServers.push(serverSocket);
 
         server.listen(port, address);
         serverSocket.setServer(server);
 
         return serverSocket;
-
     }
 
     static getIpAddress() {
