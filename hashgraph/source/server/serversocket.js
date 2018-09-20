@@ -6,9 +6,10 @@ export default class ServerSocket {
             port
         } = obj;
         this.server = server;
+        this.delimiter = '~^!@#';
         this.address = address;
         this.port = port;
-        this.buffer = [];
+        this.buffer = '';
         this.connected = false;
     }
     connect(port, address, callback) {
@@ -26,9 +27,12 @@ export default class ServerSocket {
     close() {
         var me = this;
         if (me.server && me.server.close) {
+            console.log('me.server.close');
             me.server.close();
+            me.server.unref();
         }
         if (me.socket && me.socket.destroy) {
+            console.log('me.server.destroy');
             me.socket.destroy();
         }
     }
@@ -36,6 +40,22 @@ export default class ServerSocket {
         var me = this;
         me.server = server;
     }
+
+    send(message) {
+        var me = this;
+        var { socket } = me;
+        if (typeof message !== 'string') {
+            message = JSON.stringify(message);
+        }
+        return new Promise((resolve, fail) => {
+            console.log('write to socket')
+            socket.write(message + me.delimiter, 'utf8', () => {
+                console.log('wrote to socket');
+                resolve();
+            });
+        });
+    }
+
     setSocket(socket) {
         var me = this;
         me.socket = socket;
@@ -83,7 +103,25 @@ export default class ServerSocket {
         this.closed = true;
         this.closedWithError = hadError;
     }
+    received(messages) {
+        if (this.onReceived) {
+            console.log('received and raise');
+            this.onReceived(messages);
+        }
+        else {
+            console.log('received no handler')
+        }
+    }
     data(d) {
-        this.buffer.push(d);
+        console.log('received data')
+        this.buffer = this.buffer + (d);
+        var chunks = this.buffer.split(this.delimiter);
+        if (chunks.length > 1) {
+            for (var i = 0; i < chunks.length - 1; i++) {
+                this.received(chunks[i]);
+                console.log('received message')
+            }
+            this.buffer = chunks[chunks.length - 1];
+        }
     }
 }

@@ -6,8 +6,15 @@ describe('Node Server', function () {
         var address = NodeServer.getIpAddress();
         console.log(address);
         assert.ok(address);
+        console.log(address.filter(t => t.iface && t.iface.address.startsWith('192')))
     });
 
+    it('can get and ip address starting with ', () => {
+        var address = NodeServer.getIpAddress('192');
+        console.log(address);
+        assert.ok(address);
+        assert.ok(address.length === 1)
+    })
 
     it('can create and listen to the listen event', (done) => {
         var server = NodeServer.createServer();
@@ -30,12 +37,12 @@ describe('Node Server', function () {
 
         var serverSocket = _server.createServer('192.168.1.115', 1323, () => {
             _server.close();
-            
+
         });
         assert.ok(serverSocket);
         _server.close();
         serverSocket.close();
-        done();    
+        done();
     });
 
     it('can listen to a socket', (done) => {
@@ -52,4 +59,35 @@ describe('Node Server', function () {
         });
         assert.ok(serverSocket);
     });
+
+    it('can send messages over a socket', (done) => {
+        var address = NodeServer.getIpAddress('192');
+
+        var _server2 = NodeServer.createServer(null, true);
+        var _server = NodeServer.createServer(null, true);
+        var received = false;
+        var onReceived = ((address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            _server.close();
+            _server2.close();
+            done();
+        });
+        _server.onReceived = onReceived;
+        _server2.onReceived = onReceived;
+        console.log(address);
+        var port = 1243;
+
+        _server.createServer(address[0].iface.address, port, res => {
+            console.log('created server')
+
+        });
+        var serverSocket = _server2.connectSocket(address[0].iface.address, port, res => {
+            console.log('connected to socket')
+            serverSocket.send({ sending: 'a message' });
+        });
+    })
 });
