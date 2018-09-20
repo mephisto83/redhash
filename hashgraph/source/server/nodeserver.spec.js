@@ -90,6 +90,7 @@ describe('Node Server', function () {
             serverSocket.send({ sending: 'a message' });
         });
     });
+
     it('can send messages over a socket 2', (done) => {
         var address = NodeServer.getIpAddress('192');
 
@@ -121,7 +122,7 @@ describe('Node Server', function () {
         });
     });
 
-    it('can send messages over a socket 2', (done) => {
+    it('can send messages over a socket 3', (done) => {
         var address = NodeServer.getIpAddress('192');
 
         var _server2 = NodeServer.createServer(null, true);
@@ -146,7 +147,8 @@ describe('Node Server', function () {
             console.log('created server')
 
         });
-        var serverSocket = _server2.connectSocket(address[0].iface.address, port, res => {
+        
+        _server2.connectSocket(address[0].iface.address, port, res => {
             console.log('connected to socket')
             _server.send(address[0].iface.address, port, { sending: 'a message' });
         });

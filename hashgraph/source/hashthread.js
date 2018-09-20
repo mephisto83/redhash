@@ -419,11 +419,11 @@ export default class HashThread {
     }
     sendEventId(evt, person) {
     }
-    sentEventSuccessfully(to, updateEvent) {
+    sentEventSuccessfully( updateEvent) {
         var eventId = updateEvent.id;
         var evt = this.eventList.find(t => t.id === eventId);
         if (evt instanceof HashEvent) {
-            evt.setMetaEvidence(to, this.self, this.contributors);
+            // evt.setMetaEvidence(to, this.self, this.contributors);
 
             if (updateEvent && updateEvent.id === evt.id) {
                 evt.applyHistory(updateEvent.history);

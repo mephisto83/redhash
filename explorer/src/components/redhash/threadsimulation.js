@@ -45,7 +45,7 @@ class ThreadSimulation extends Component {
                                 var ms = me.state.messageServices[dest];
                                 var ct = RedHash.HashEvent.currentTime;
                                 return ms.send(ets, dest, id).then(res => {
-                                    thread.sentEventSuccessfully(dest, res);
+                                    thread.sentEventSuccessfully(res);
                                     me.setState({
                                         messageTransitions: [...me.state.messageTransitions, {
                                             from: thread.self,

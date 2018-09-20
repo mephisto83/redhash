@@ -178,16 +178,16 @@ export default class HashLine {
             }
         }
     }
-    sentEventSuccessfully(from, evnt) {
+    sentEventSuccessfully( evnt) {
         var me = this;
         var hashmsg = HashEvent.create(evnt);
 
         switch (hashmsg._type) {
             case ET.MEMBERSHIP:
-                me.membershipThread.sentEventSuccessfully(from, hashmsg);
+                me.membershipThread.sentEventSuccessfully( hashmsg);
                 break;
             default:
-                me.eventThread.sentEventSuccessfully(from, hashmsg);
+                me.eventThread.sentEventSuccessfully( hashmsg);
                 break;
         }
     }

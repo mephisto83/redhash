@@ -80,7 +80,7 @@ export default class TestMessageService extends IMessageService {
             return me.send(t, to, from).then(res => {
                 var service = services.find(t => t.id === from);
                 if (service) {
-                    service.sentEventSuccessfully(to, res);
+                    service.sentEventSuccessfully(res);
                 }
             })
         }));
@@ -100,7 +100,7 @@ export default class TestMessageService extends IMessageService {
                         promises.push(me.send(t, to, from).then(res => {
                             var service = services.find(t => t.id === from);
                             if (service) {
-                                service.sentEventSuccessfully(to, res);
+                                service.sentEventSuccessfully(res);
                             }
                         }));
                     }));
@@ -115,9 +115,9 @@ export default class TestMessageService extends IMessageService {
     onmessagesent(handler) {
         this.messageSentHandler = handler;
     }
-    sentEventSuccessfully(to, evt) {
+    sentEventSuccessfully(evt) {
         if (this.messageSentHandler) {
-            this.messageSentHandler(to, evt);
+            this.messageSentHandler(evt);
         }
     }
     received(message, to, from) {
@@ -139,13 +139,14 @@ export default class TestMessageService extends IMessageService {
             return line.receiveEvent(mess, from);
         });
 
-        this.onmessagesent((to, evt) => {
-            line.sentEventSuccessfully(to, evt);
+        this.onmessagesent((evt) => {
+            line.sentEventSuccessfully(evt);
         });
 
         line.listen(HThread.SENDEVENT, (event) => {
 
         });
+
         line.listen(ET.SEND_MESSAGE, message => {
             if (message && message.from && message.to) {
                 this.sendingMessagePromise = this.sendingMessagePromise.then(() => {
