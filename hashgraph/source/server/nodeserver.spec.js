@@ -89,5 +89,66 @@ describe('Node Server', function () {
             console.log('connected to socket')
             serverSocket.send({ sending: 'a message' });
         });
-    })
+    });
+    it('can send messages over a socket 2', (done) => {
+        var address = NodeServer.getIpAddress('192');
+
+        var _server2 = NodeServer.createServer(null, true);
+        var _server = NodeServer.createServer(null, true);
+        var received = false;
+        var onReceived = ((address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            _server.close();
+            _server2.close();
+            done();
+        });
+        _server.onReceived = onReceived;
+        _server2.onReceived = onReceived;
+        console.log(address);
+        var port = 1243;
+
+        _server.createServer(address[0].iface.address, port, res => {
+            console.log('created server')
+
+        });
+        var serverSocket = _server2.connectSocket(address[0].iface.address, port, res => {
+            console.log('connected to socket')
+            _server2.send(address[0].iface.address, port, { sending: 'a message' });
+        });
+    });
+
+    it('can send messages over a socket 2', (done) => {
+        var address = NodeServer.getIpAddress('192');
+
+        var _server2 = NodeServer.createServer(null, true);
+        var _server = NodeServer.createServer(null, true);
+        var received = false;
+        var onReceived = ((address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            _server.close();
+            _server2.close();
+            done();
+        });
+        _server.onReceived = onReceived;
+        _server2.onReceived = onReceived;
+        console.log(address);
+        var port = 1244;
+
+        _server.createServer(address[0].iface.address, port, res => {
+            console.log('created server')
+
+        });
+        var serverSocket = _server2.connectSocket(address[0].iface.address, port, res => {
+            console.log('connected to socket')
+            _server.send(address[0].iface.address, port, { sending: 'a message' });
+        });
+    });
 });
