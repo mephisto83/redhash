@@ -18,28 +18,10 @@ export default class MessageService extends IMessageService {
     attach(hg) {
         this.hg = hg;
     }
-    // cause messages in the pipeline to be delivered.
-    // step(fail, id) {
-    //     var me = this;
-    //     let received = [];
-
-    //     pipeline.filter(x => x.to === (id || me.id)).map(t => {
-
-    //         var res = me.received(t.message, t.to, t.from)
-    //         if (fail) {
-    //             t.error(false);
-    //         }
-    //         else {
-    //             t.callback(res || true);
-    //         }
-    //         received.push(t.id);
-    //     });
-
-    //     pipeline = [...pipeline.filter(t => received.indexOf(t.id) === -1)];
-    // }
 
     send(message, to, from) {
         from = from || this.id;
+        console.log('sending message service message');
         return new Promise((resolve, fail) => {
             var res = {
                 to,
@@ -56,53 +38,14 @@ export default class MessageService extends IMessageService {
             pipeline.push(res);
         });
     }
-    // sendMessagesFor(to, from) {
-    //     var messages = [];
-    //     var me = this;
-    //     Object.keys(me.lines).map(t => {
-    //         messages = [...messages, ...me.lines[t].getMessageToSendTo(to)];
-    //     });
 
-    //     return Promise.all(messages.map(t => {
-    //         return me.send(t, to, from).then(res => {
-    //             var service = services.find(t => t.id === from);
-    //             if (service) {
-    //                 service.sentEventSuccessfully( res);
-    //             }
-    //         })
-    //     }));
-    // }
-
-    // sendMessages(from) {
-    //     var messages = [];
-    //     var me = this;
-    //     var promises = [];
-    //     Object.keys(me.lines).map(t => {
-    //         var line = me.lines[t];
-    //         messages = line.getMessageToSend() || [];
-    //         (messages.map(t => {
-    //             (line.getNextPossibleDestinationsFor(t).map(dests => {
-    //                 console.log(dests);
-    //                 ([dests].map(to => {
-    //                     promises.push(me.send(t, to, from).then(res => {
-    //                         var service = services.find(t => t.id === from);
-    //                         if (service) {
-    //                             service.sentEventSuccessfully( res);
-    //                         }
-    //                     }));
-    //                 }));
-    //             }));
-    //         }));
-    //     });
-    //     return Promise.all(promises);
-    // }
     onmessage(handler) {
         this.messageHandler = handler;
     }
     onmessagesent(handler) {
         this.messageSentHandler = handler;
     }
-    sentEventSuccessfully( evt) {
+    sentEventSuccessfully(evt) {
         if (this.messageSentHandler) {
             this.messageSentHandler(evt);
         }
@@ -119,15 +62,15 @@ export default class MessageService extends IMessageService {
         return res;
     }
     assignLine(line, id = null) {
-        id = id || util.GUID();
+        id = line.name || id || util.GUID();
         var me = this;
         this.onmessage((message, to, from) => {
             var mess = strarse(message);
             return line.receiveEvent(mess, from);
         });
 
-        this.onmessagesent(( evt) => {
-            line.sentEventSuccessfully( evt);
+        this.onmessagesent((evt) => {
+            line.sentEventSuccessfully(evt);
         });
 
         line.listen(HThread.SENDEVENT, (event) => {
@@ -135,11 +78,14 @@ export default class MessageService extends IMessageService {
         });
         line.listen(ET.SEND_MESSAGE, message => {
             if (message && message.from && message.to) {
-                this.sendingMessagePromise = this.sendingMessagePromise.then(() => {
-                    return me.send(message, message.to, message.from);
-                }).catch(e => {
-                    console.log(e);
-                })
+                //this.sendingMessagePromise = this.sendingMessagePromise.then(() => {
+                me.send(message, message.to, message.from);
+                //}).catch(e => {
+                //  console.log(e);
+                // })
+            }
+            else {
+                throw 'not sending message'
             }
         });
 

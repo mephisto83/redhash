@@ -115,17 +115,13 @@ export const _documentation = {
         type: 'function',
         description: 'Set up the meta data for the current number of contributors'
     },
-    setMetaEvidence: {
-        type: 'function',
-        description: 'Sets the meta evidence'
-    },
     applyContributors: {
         type: 'function',
         description: 'Applies a new set of contributors to the event'
     }
 }
 export default class HashEvent {
-    constructor(_message, type, contributors) {
+    constructor(_message, type, contributors, line) {
         if (!contributors) {
             throw 'requires contributors to create hash event';
         }
@@ -135,6 +131,7 @@ export default class HashEvent {
             me.history[t] = me.history[t] || null
         });
         this.time = Infinity;
+        this.line = line;
         this.contributors = [...contributors];
         this.message = _message;
         this.eventIndex = null;
@@ -185,6 +182,7 @@ export default class HashEvent {
         duplicate.history = Object.assign(duplicate.history, update);
         duplicate.updateTime();
         duplicate.id = hashEvent.id;
+        duplicate.line = hashEvent.line;
         duplicate.threadId = hashEvent.threadId
         duplicate._type = hashEvent._type;
         duplicate.eventSource = hashEvent.eventSource;
@@ -202,6 +200,7 @@ export default class HashEvent {
         hashEvent.eventSource = _obj.eventSource;
         // hashEvent.meta = HashMeta.copy(_obj.meta);
         hashEvent.threadId = _obj.threadId
+        hashEvent.line = _obj.line;
         hashEvent.id = _obj.id;
         return hashEvent;
     }
@@ -283,19 +282,7 @@ export default class HashEvent {
     setupMeta() {
         return this;
     }
-    setMetaEvidence(contributor, self) {
-        var me = this;
-        var index = me.contributors.indexOf(contributor);
-        var sindex = me.contributors.indexOf(self);
-        if (index === -1) {
-            throw 'invalid contributor index';
-        }
-        if (sindex === -1) {
-            throw 'invalid contributor sindex';
-        }
-
-        return this;
-    }
+    
     static combine(updated, original) {
         // if (updated && original && updated.meta && original.meta)
         //     original.meta = HashMeta.or(updated.meta, original.meta);

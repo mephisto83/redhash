@@ -2,6 +2,7 @@ import assert from 'assert';
 import HashLine, { EVENT_THREAD } from './hashline';
 import HashEvent from './hashevent';
 import TestMessageService from './testmessageservice';
+import SocketMessageService from './socketmessageservice';
 import * as HThread from './hashthread';
 import ET from './eventtypes';
 import { MEMBERSHIP_THREAD } from './hashline';
@@ -27,7 +28,8 @@ describe('HashLine', function () {
         }
 
         TestMessageService.clear();
-    })
+    });
+
     it('can create initial has line setup', () => {
         //Two threads, membership thread, and a event thread.
         var tms = new TestMessageService('1');
@@ -62,8 +64,6 @@ describe('HashLine', function () {
             });
         });
     });
-
-
 
     it('listens for send events', () => {
         var self = 'self';
@@ -154,7 +154,6 @@ describe('HashLine', function () {
         TestMessageService.globalStep();
     });
 
-
     it('can get messages to send to  a person', () => {
         var self = 'self';
         var person = 'person';
@@ -214,7 +213,6 @@ describe('HashLine', function () {
         assert.ok(line2.membershipThread.eventList.length === 1, 'membership thread should have 1 event, not ' + line2.membershipThread.eventList.length)
         assert.ok(line2.eventThread.eventList.length === 1, 'event  thread should have 1 event')
     });
-
 
     it('process state machines', (done) => {
         var self = 'self';
@@ -303,7 +301,6 @@ describe('HashLine', function () {
             assert.ok(newstate.state.state === MA.ADD_CONTRIBUTOR);
         }).then(done);
     });
-
 
     it('process state machines , add contributor', (done) => {
         var self = 'self';
@@ -414,7 +411,6 @@ describe('HashLine', function () {
             assert.ok(newstate.state.state === MA.THREAD_CUT_OFF);
         }).then(done);
     });
-
 
     it('process state machines , approved ', (done) => {
         var self = 'self';
@@ -541,7 +537,6 @@ describe('HashLine', function () {
             done()
         });
     });
-
 
     it('process state machines , rejected ', (done) => {
         var self = 'self';
@@ -934,7 +929,6 @@ describe('HashLine', function () {
         }).then(done);
     });
 
-
     it('process state machines , approved ', (done) => {
         var self = 'self';
         var person = 'person';
@@ -1066,7 +1060,6 @@ describe('HashLine', function () {
 
         }).then(done);
     });
-
 
     it('process state machines , approved, async ', (done) => {
         var self = 'self';
@@ -1233,7 +1226,6 @@ describe('HashLine', function () {
 
     });
 
-
     it('process state machines , ranges dont match ', (done) => {
         var self = 'self';
         var person = 'person';
@@ -1374,7 +1366,6 @@ describe('HashLine', function () {
             done();
         });
     });
-
 
     it('process state machines , approved, async, continue with 3rd line ', (done) => {
         var self = 'self';
@@ -1576,7 +1567,6 @@ describe('HashLine', function () {
         });
     });
 
-
     it('process state machines , approved, async, continue with 3rd line , sent init to 3rd line', (done) => {
         var self = 'self';
         var person = 'person';
@@ -1776,7 +1766,6 @@ describe('HashLine', function () {
         });
     });
 
-
     it('process state machines , approved, async, continue with 3rd line , sent init to 3rd line, remove a person', (done) => {
         var self = 'self';
         var person = 'person';
@@ -1951,13 +1940,13 @@ describe('HashLine', function () {
                 threadType: newstate.state.threadType,
                 tails: _transferredTails
             })
-console.log( {
-    type: ET.JOIN,
-    state: _transferredState.storedState,
-    thread: newstate.state.thread,
-    threadType: MEMBERSHIP_THREAD,
-    tails: line.getTails(MEMBERSHIP_THREAD)
-});
+            console.log({
+                type: ET.JOIN,
+                state: _transferredState.storedState,
+                thread: newstate.state.thread,
+                threadType: MEMBERSHIP_THREAD,
+                tails: line.getTails(MEMBERSHIP_THREAD)
+            });
             line2.sendMessage({
                 from: person,
                 to: person2,
@@ -2103,5 +2092,413 @@ console.log( {
         }).then(() => {
             done();
         });
+    });
+
+
+
+
+    it('process state machines , approved, async, continue with 3rd line , sent init to 3rd line, remove a person', (done) => {
+        this.timeout(10000);
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var lineName = 'line name for this line';
+        var line = new HashLine(lineName, self, [...contributors]);
+        var line2 = new HashLine(lineName, person, [...contributors]);
+        var line3;
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new SocketMessageService(line.name);
+        var tmsconnections = [];
+
+        var tms3;
+        var sendMesses = function () {
+            // if (tms3) {
+            //     console.log('sending on tms3');
+            // }
+            console.log('send message start ---------------------- ')
+            var p = Promise.all([
+                tms.sendMessages(self),
+                tms2.sendMessages(person),
+                tms3 ? tms3.sendMessages(person2) : null
+            ].filter(t => t));
+            // SocketMessageService.globalStep();
+            return p.then(() => {
+                console.log('---------------------- send message complete');
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve();
+                    }, 80)
+                })
+            });
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        var csm = function () {
+            return new CatStateMachine({
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line.assignMachine(csm, EVENT_THREAD);
+
+        line2.assignMachine(msmConstructor);
+        line2.assignMachine(csm, EVENT_THREAD);
+
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new SocketMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        var EVENT = 'EVENT';
+
+
+        Promise.resolve().then(() => {
+            console.log('opening listener');
+            return tms.openListener({ address: '192', port: 4000, id: person })
+        }).then(res => {
+            console.log('connecting');
+            return tms2.connect({ address: res.address, port: res.port, id: self }).then(() => {
+                return res;
+            });
+        }).then((res) => {
+            return tms.isOpen({ address: res.address, port: res.port, id: self });
+        }).then(() => {
+            line.sendEvent({
+                type: MA.INITIALIZE_STATE
+            }, ET.MEMBERSHIP)
+        })
+            .then(sendMesses).then(() => {
+                line.sendEvent({
+                    type: MA.REQUEST_CONTRIBUTOR_ADD,
+                    connectionInfo: new IConnectionInfo(person2, {
+                        thread: threadid,
+                        threadType: EVENT_THREAD
+                    })
+                }, ET.MEMBERSHIP);
+
+            }).then(sendMesses).then(() => {
+                line.sendEvent({
+                    type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                    from: self,
+                    name: person2
+                }, ET.MEMBERSHIP);
+                console.log(line.threads[MEMBERSHIP_THREAD].thread.eventList[0])
+            }).then(sendMesses).then(() => {
+                line2.sendEvent({
+                    type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                    from: person,
+                    name: person2
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                line.sendEvent({
+                    type: MA.ADD_CONTRIBUTOR,
+                    from: self,
+                    name: person2
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 1' });
+                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
+                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 3' });
+                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 4' });
+                line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' });
+            }).then(sendMesses).then(() => {
+                line.sendEvent({
+                    type: MA.UPDATE_THREAD,
+                    from: self,
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                var { state, time } = line.processState(EVENT_THREAD);
+                line.sendEvent({
+                    type: MA.THREAD_CUT_OFF,
+                    from: self,
+                    time: 2000,
+                    storedState: {
+                        EVENT_THREAD: {
+                            state,
+                            time
+                        }
+                    },
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                var range = line.getCutRanges(EVENT_THREAD);
+                line.sendEvent({
+                    type: MA.THREAD_CUT_APPROVAL,
+                    from: self,
+                    time: 2000,
+                    range,
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                var range = line2.getCutRanges(EVENT_THREAD);
+                line2.sendEvent({
+                    type: MA.THREAD_CUT_APPROVAL,
+                    from: person,
+                    time: 2000,
+                    range,
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+
+            }).then(sendMesses).then(() => {
+                var newstate = line.processState(MEMBERSHIP_THREAD);
+                var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+                assert.ok(newstate);
+                assert.ok(newstate2);
+                console.log(newstate.state);
+                console.log(newstate2.state);
+                assert.ok(newstate2.state.state === MA.THREAD_CUT_APPROVED, `${newstate2.state.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+                assert.ok(newstate.state.state === MA.THREAD_CUT_APPROVED);
+
+                //Next step
+                //Setup the new line and pass the state.
+                line3 = new HashLine(lineName, person2, [...contributors, person2]);
+                line3.initialize(threadid);
+                line3.assignMachine(msmConstructor);
+                line3.assignMachine(csm, EVENT_THREAD);
+            })
+            .then(sendMesses)
+            .then(() => {
+
+                tms3 = new SocketMessageService(line3.name);;
+                tms3.assignLine(line3);
+
+                return Promise.resolve().then(() => {
+                    console.log('opening listener');
+                    return tms2.openListener({ address: '192', port: 4007, id: person2 })
+                }).then(res => {
+                    console.log('connecting');
+                    return tms3.connect({ address: res.address, port: res.port, id: person }).then(() => {
+                        return res;
+                    });
+                }).then((res) => {
+                    return tms2.isOpen({ address: res.address, port: res.port, id: person });
+                })
+            })
+            .then(sendMesses)
+            .then(() => {
+                return Promise.resolve().then(() => {
+                    console.log('opening listener');
+                    return tms.openListener({ address: '192', port: 4004, id: person2 })
+                }).then(res => {
+                    console.log('connecting');
+                    return tms3.connect({ address: res.address, port: res.port, id: self }).then(() => {
+                        return res;
+                    });
+                }).then((res) => {
+                    return tms.isOpen({ address: res.address, port: res.port, id: self });
+                })
+            })
+            .then(sendMesses)
+            .then(() => {
+                var newstate = line.processState(MEMBERSHIP_THREAD);
+                line.adjustContributors();
+                line2.adjustContributors();
+                assert.ok(!line2.eventThread.eventList.length);
+                assert.ok(!line.eventThread.eventList.length);
+                assert.ok(line);
+                assert.ok(line.threads[EVENT_THREAD].thread.eventList);
+
+                var eventstate = line.processState(EVENT_THREAD);
+                var eventstate2 = line2.processState(EVENT_THREAD);
+
+
+                var _transferredState = line.getState(MEMBERSHIP_THREAD);
+                var _transferredTails = line.getTails(EVENT_THREAD);
+
+                line2.sendMessage({
+                    from: person,
+                    to: person2,
+                    message: {
+                        type: ET.JOIN,
+                        thread: newstate.state.thread,
+                        threadType: newstate.state.threadType,
+                        tails: _transferredTails
+                    }
+                })
+                console.log({
+                    type: ET.JOIN,
+                    state: _transferredState.storedState,
+                    thread: newstate.state.thread,
+                    threadType: newstate.state.threadType,
+                    tails: _transferredTails
+                })
+                console.log({
+                    type: ET.JOIN,
+                    state: _transferredState.storedState,
+                    thread: newstate.state.thread,
+                    threadType: MEMBERSHIP_THREAD,
+                    tails: line.getTails(MEMBERSHIP_THREAD)
+                });
+                line2.sendMessage({
+                    from: person,
+                    to: person2,
+                    message: {
+                        type: ET.JOIN,
+                        state: _transferredState.storedState,
+                        thread: newstate.state.thread,
+                        threadType: MEMBERSHIP_THREAD,
+                        tails: line.getTails(MEMBERSHIP_THREAD)
+                    }
+                });
+
+
+            }).then(sendMesses)
+
+            .then(() => {
+                line2.sendEvent({
+                    type: CSM.UPDATE,
+                    name: EVENT,
+                    value: 'an event 5'
+                }, EVENT_THREAD);                
+                
+            }).then(sendMesses).then(() => {
+                line3.sendEvent({ type: CSM.UPDATE, name: 'LINE3', value: 'an event 3' }, EVENT_THREAD);
+            }).then(sendMesses).then(() => {
+            }).then(sendMesses).then(() => {
+                var l3state = line3.getState(EVENT_THREAD);
+                assert.ok(l3state);
+                console.log(tms3.connectionLib.id)
+                console.log(tms2.connectionLib.id)
+                console.log(tms.connectionLib.id)                
+                console.log(l3state);
+                console.log(line3.eventThread.eventList)
+                console.log(line3.eventThread.getCompletedEvents())
+                // console.log(line2.getState(EVENT_THREAD));
+                assert.ok(l3state.EVENT)
+                assert.ok(line3.eventThread.eventList.length);
+                assert.ok(line2.eventThread.eventList.length);
+                assert.ok(line.eventThread.eventList.length);
+
+                line.applyThread(EVENT_THREAD);
+                line2.applyThread(EVENT_THREAD);
+                line3.applyThread(EVENT_THREAD);
+
+
+                line.applyThread(MEMBERSHIP_THREAD);
+                line2.applyThread(MEMBERSHIP_THREAD);
+                line3.applyThread(MEMBERSHIP_THREAD);
+
+                assert.ok(line2.eventThread.eventList.length === 0);
+                assert.ok(line.eventThread.eventList.length === 0);
+                assert.ok(line3.eventThread.eventList.length === 0);
+
+            }).then(() => {
+                line.sendEvent({
+                    type: MA.INITIALIZE_STATE
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                line.sendEvent({
+                    type: MA.REQUEST_CONTRIBUTOR_REMOVE,
+                    thread: threadid,
+                    threadType: EVENT_THREAD,
+                    name: person
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                var temp = line.sendEvent({
+                    type: MA.ACCEPT_CONTRIBUTOR_REMOVE,
+                    from: self,
+                    name: person
+                }, ET.MEMBERSHIP);
+                var temp2 = line3.sendEvent({
+                    type: MA.ACCEPT_CONTRIBUTOR_REMOVE,
+                    from: person2,
+                    name: person
+                }, ET.MEMBERSHIP);
+                console.log('line 3 sent message --------------- ^^^^^^^^^^ ')
+                targetEvent = [temp, temp2];
+            }).then(sendMesses).then(() => {
+            
+            }).then(sendMesses).then(() => {
+                var newstate2 = line.processState(MEMBERSHIP_THREAD);
+                console.log(newstate2.state);
+                assert.equal(newstate2.state.state, MA.REMOVE_CONTRIBUTOR);
+            }).then(sendMesses).then(() => {
+                line.sendEvent({
+                    type: MA.UPDATE_THREAD,
+                    from: self,
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                var newstate2 = line.processState(MEMBERSHIP_THREAD);
+                console.log('thread -cut -off - &&&&&&&&&&&&&&&&&')
+                console.log(newstate2.state);
+                assert.equal(newstate2.state.state, MA.UPDATE_THREAD);
+
+                var { state, time } = line.processState(EVENT_THREAD);
+                line.sendEvent({
+                    type: MA.THREAD_CUT_OFF,
+                    from: self,
+                    storedState: {
+                        EVENT_THREAD: {
+                            state,
+                            time
+                        }
+                    },
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+           
+                var newstate2 = line.processState(MEMBERSHIP_THREAD);
+                console.log(newstate2.state);
+                assert.equal(newstate2.state.state, MA.THREAD_CUT_OFF);
+
+                var range = line.getCutRanges(EVENT_THREAD);
+                line.sendEvent({
+                    type: MA.THREAD_CUT_APPROVAL,
+                    from: self,
+                    range,
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+            }).then(sendMesses).then(() => {
+                var newstate2 = line.processState(MEMBERSHIP_THREAD);
+                console.log(newstate2.state);
+                assert.equal(newstate2.state.state, MA.THREAD_CUT_OFF);
+
+                var range = line3.getCutRanges(EVENT_THREAD);
+                line3.sendEvent({
+                    type: MA.THREAD_CUT_APPROVAL,
+                    from: person2,
+                    range,
+                    thread: threadid
+                }, ET.MEMBERSHIP);
+                console.log(line3.getThread(MEMBERSHIP_THREAD).eventTails)
+            }).then(sendMesses).then(() => {
+            }).then(sendMesses).then(() => {
+                var newstate = line.processState(MEMBERSHIP_THREAD);
+                var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+                assert.ok(newstate);
+                assert.ok(newstate2);
+
+                console.log(line.getThread(MEMBERSHIP_THREAD).eventList.length);
+                console.log(line.getThread(MEMBERSHIP_THREAD).getCompletedEvents().length);
+
+                console.log(line3.getThread(MEMBERSHIP_THREAD).eventList.length);
+                console.log(line3.getThread(MEMBERSHIP_THREAD).getCompletedEvents().length);
+
+                console.log(newstate.state);
+                console.log(newstate2.state);
+
+                assert.ok(newstate2.state.state === MA.THREAD_CUT_APPROVED, `${newstate2.state.state} !== ${MA.THREAD_CUT_APPROVED}`);
+                assert.ok(newstate.state.state === MA.THREAD_CUT_APPROVED);
+
+            })
+            .then(() => {
+                console.log('closing stuff o')
+                tms.close();
+                tms2.close();
+                if (tms3)
+                    tms3.close();
+            }).then(() => {
+                done();
+            });
     });
 });

@@ -15,14 +15,16 @@ export default class ServerSocket {
     connect(port, address, callback) {
         var me = this;
         if (me.socket && me.socket.connect) {
+
             me.socket.connect(me.port || port, me.address || address, function () {
-                console.log('Connected');
+
                 me.connected = true;
                 if (callback) {
                     callback(me);
                 }
             });
         }
+        else { console.log('no socket to connect') }
     }
     close() {
         var me = this;
@@ -48,9 +50,7 @@ export default class ServerSocket {
             message = JSON.stringify(message);
         }
         return new Promise((resolve, fail) => {
-            console.log('write to socket')
             socket.write(message + me.delimiter, 'utf8', () => {
-                console.log('wrote to socket');
                 resolve();
             });
         });
@@ -105,7 +105,7 @@ export default class ServerSocket {
     }
     received(messages) {
         if (this.onReceived) {
-            console.log('received and raise');
+
             this.onReceived(messages);
         }
         else {
@@ -113,13 +113,12 @@ export default class ServerSocket {
         }
     }
     data(d) {
-        console.log('received data')
+
         this.buffer = this.buffer + (d);
         var chunks = this.buffer.split(this.delimiter);
         if (chunks.length > 1) {
             for (var i = 0; i < chunks.length - 1; i++) {
                 this.received(chunks[i]);
-                console.log('received message')
             }
             this.buffer = chunks[chunks.length - 1];
         }

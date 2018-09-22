@@ -231,7 +231,7 @@ export default class NodeServer {
     static createServer(config, skip) {
         return new NodeServer(config, skip);
     }
-
+    //Deprecated
     createSocketServer(addressInfo, port, callback) {
         return new Promise((resolve, fail) => {
             var me = this;
@@ -255,7 +255,6 @@ export default class NodeServer {
     }
     connectSocket(address, port, callback) {
         var me = this;
-        // var socket = net.createConnection(port, address);
         var socket = new net.Socket();
         var serverSocket = new ServerSocket({
             address,
@@ -285,7 +284,7 @@ export default class NodeServer {
             address,
             port
         });
-
+        console.log('create server')
         var server = net.createServer(function (socket) {
             console.log('---------------- create server -----------------')
             serverSocket.setSocket(socket);

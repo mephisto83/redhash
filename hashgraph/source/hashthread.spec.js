@@ -362,7 +362,11 @@ describe('HashThread', function () {
             assert.ok(s1.eventHeads);
             assert.ok(s1.eventHeads[self]);
             assert.ok(s1.eventHeads[person] === undefined);
-            assert.ok(s1.eventHeads[otherperson] === 1, 'is otherpersion not right');
+            assert.ok(s1.eventHeads[otherperson] === undefined);
+            console.log(s1.eventHeads)
+            console.log(p2.eventList[0]);
+
+            assert.ok(s1.eventHeads[self] === 1, `'is self not right' ${s1.eventHeads[self]}`);
 
         });
 

@@ -143,14 +143,22 @@ describe('Node Server', function () {
         console.log(address);
         var port = 1244;
 
-        _server.createServer(address[0].iface.address, port, res => {
-            console.log('created server')
+        var p = new Promise((resolve) => {
 
+            _server.createServer(address[0].iface.address, port, res => {
+                console.log('created server')
+                resolve();
+            });
+        })
+        var p2 = new Promise((resolve) => {
+            _server2.connectSocket(address[0].iface.address, port, res => {
+                console.log('connected to socket')
+
+                resolve();
+            });
         });
-        
-        _server2.connectSocket(address[0].iface.address, port, res => {
-            console.log('connected to socket')
+        Promise.all([p, p2]).then(() => {
             _server.send(address[0].iface.address, port, { sending: 'a message' });
-        });
+        })
     });
 });

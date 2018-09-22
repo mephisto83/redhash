@@ -22,6 +22,7 @@ export default class HashLine {
         this.listeners = [];
         this.stateMatchines = {};
         this.contributors = contributors || [self];
+        this.contributors.sort();
     }
     assignMachine(stateMachineConstructor, thread) {
         thread = thread || MEMBERSHIP_THREAD;
@@ -67,9 +68,11 @@ export default class HashLine {
         var events = thread.getCompletedEvents() || [];
 
         if (events.length) {
+            console.log(`events.length : ${events.length}`);
+            console.log(events.map(t=>t.time))
             return {
-                minimum: events[events.length - 1].time,
-                maximum: events[0].time
+                minimum: events[0].time,
+                maximum: events[events.length - 1].time
             }
         }
         return {
@@ -80,11 +83,14 @@ export default class HashLine {
 
     sendEvent(msg, type) {
         var me = this;
+        console.log('send event')
         if (me.membershipThread && type === ET.MEMBERSHIP) {
-            return me.membershipThread.sendEvent(new HashEvent(msg, type, this.contributors));
+            console.log('send event membership')
+            return me.membershipThread.sendEvent(new HashEvent(msg, type, this.contributors, this.name));
         }
         else if (me.eventThread) {
-            return me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors));
+            console.log('send event event')
+            return me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors, this.name));
         }
     }
     getState(thread) {
@@ -109,6 +115,7 @@ export default class HashLine {
                             startTime: state.time
                         });
                         this.contributors = [...state.proposed];
+                        this.contributors.sort();
                         thread.eventTails = thread.extractEventTails(completedEvents, state.proposed);
                         this.processStateEvents(state.threadType, completedEvents);
                         var membershipThread = this.getThread(MEMBERSHIP_THREAD);
@@ -171,23 +178,23 @@ export default class HashLine {
                         threadType,
                         tails
                     } = msg.message;
-
+console.log('JOIN FOUND ------------------')
                     this.assignState(state, threadType);
                     this.assignTails(tails, threadType);
                     break;
             }
         }
     }
-    sentEventSuccessfully( evnt) {
+    sentEventSuccessfully(evnt) {
         var me = this;
         var hashmsg = HashEvent.create(evnt);
 
         switch (hashmsg._type) {
             case ET.MEMBERSHIP:
-                me.membershipThread.sentEventSuccessfully( hashmsg);
+                me.membershipThread.sentEventSuccessfully(hashmsg);
                 break;
             default:
-                me.eventThread.sentEventSuccessfully( hashmsg);
+                me.eventThread.sentEventSuccessfully(hashmsg);
                 break;
         }
     }
@@ -284,6 +291,7 @@ export default class HashLine {
 
     sendMessage(message) {
         message._type = ET.SEND_MESSAGE;
+        message.line = this.name;
         this.raiseEvent(ET.SEND_MESSAGE, message);
     }
 

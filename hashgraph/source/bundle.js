@@ -14,7 +14,7 @@ import NodeServer from './server/nodeserver';
 import hashevent from '../../explorer/node_modules/redhashgraph/distribution/hashevent';
 import ServerSocket from './server/serversocket';
 import TestMessageService from './testmessageservice';
-
+import SocketMessageService from './socketmessageservice';
 
 function strarse(t) {
     return JSON.parse(JSON.stringify(t))
@@ -34,6 +34,7 @@ export default {
     ServerSocket,
     strarse,
     TestMessageService,
+    SocketMessageService,
     Documentation: {
         HashMeta: HashMetaData._documentation,
         HashEvent: _documentation,

@@ -165,7 +165,7 @@ export default class HashThread {
         this.initTailEvents();
         this.listen(UPDATEEVENT, this.handleUpdateEvent.bind(this));
         this.listen(RECEIVEEVENT, this.handleReceivedEvent.bind(this));
-        this.listen(EVENTUPDATED, this.handleUpdatedEvent.bind(this));
+        // this.listen(EVENTUPDATED, this.handleUpdatedEvent.bind(this));
     }
     sortEvents() {
         this.eventList = [...this.eventList.sort((a, b) => {
@@ -179,15 +179,41 @@ export default class HashThread {
     }
     handleUpdateEvent(evt) {
         var me = this;
-        var { update, original, from } = evt;
+        var { update, original } = evt;
 
         if (original && update) {
             HashEvent.combine(update, original);
             if (original instanceof HashEvent) {
-                original.setMetaEvidence(from, this.self);
-                this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, original.eventIndex);
+
+                original.applyHistory(update.history);
+                this.eventHeads[original.eventSource] = Math.max(this.eventHeads[original.eventSource] || 0, original.eventIndex);
+                this.sortEvents();
             }
-            this.sortEvents();
+
+        }
+    }
+
+    //Deprecated
+    sentEventSuccessfully(updateEvent) {
+        var eventId = updateEvent.id;
+        var evt = this.eventList.find(t => t.id === eventId);
+        if (evt instanceof HashEvent) {
+            this.handleUpdateEvent({
+                update: updateEvent,
+                original: evt
+            })
+            // if (updateEvent && updateEvent.id === evt.id) {
+            //     evt.applyHistory(updateEvent.history);
+            // }
+            // else {
+            //     throw 'not applying history';
+            // }
+
+            // this.eventHeads[evt.eventSource] = Math.max(this.eventHeads[evt.eventSource], evt.eventIndex);
+            // this.sortEvents();
+        }
+        else {
+            throw 'not a hash event'
         }
     }
     initTailEvents() {
@@ -198,23 +224,18 @@ export default class HashThread {
     }
     handleReceivedEvent(args) {
         if (args) {
+
             var { event, from } = args;
             if (event instanceof HashEvent) {
-                event.setMetaEvidence(from, this.self);
+
                 this.raiseEvent(EVENTUPDATED, args);
 
-                this.eventHeads[from] = Math.max(this.eventHeads[from] || 0, event.eventIndex);
+                this.eventHeads[event.eventSource] = Math.max(this.eventHeads[event.eventSource] || 0, event.eventIndex);
 
             }
         }
     }
-    handleUpdatedEvent(evt) {
-        if (evt) {
-            var { event } = evt;
-            // var contributors = HashEvent.getContributorsNeedingUpdates(event, this.self, this.contributors);
 
-        }
-    }
     //Copy
     static copy(thread) {
         var duplicate = new HashThread([...(thread.contributors || [])], thread.self);
@@ -260,7 +281,7 @@ export default class HashThread {
         })
 
         thread.contributors = contributors;
-
+        thread.contributors.sort();
         thread.setEventList(events);
 
         return result;
@@ -405,12 +426,13 @@ export default class HashThread {
     // A new event created by the local client.
     sendEvent(hashEvent) {
         if (hashEvent instanceof HashEvent) {
+
             this.eventIndex++;
             var newevent = hashEvent
                 .setSource(this.self)
                 .stamp(this.self, this.eventIndex, this.threadId);
 
-            this.eventHeads[this.self] = Math.max(this.eventHeads[this.self] || 0, newevent.eventIndex);
+            this.eventHeads[hashEvent.eventSource] = Math.max(this.eventHeads[hashEvent.eventSource] || 0, newevent.eventIndex);
             this.eventList.push(newevent);
             this.sortEvents();
             this.raiseEvent(SENDEVENT, newevent);
@@ -418,26 +440,6 @@ export default class HashThread {
         }
     }
     sendEventId(evt, person) {
-    }
-    sentEventSuccessfully( updateEvent) {
-        var eventId = updateEvent.id;
-        var evt = this.eventList.find(t => t.id === eventId);
-        if (evt instanceof HashEvent) {
-            // evt.setMetaEvidence(to, this.self, this.contributors);
-
-            if (updateEvent && updateEvent.id === evt.id) {
-                evt.applyHistory(updateEvent.history);
-            }
-            else {
-                throw 'not applying history';
-            }
-
-            this.eventHeads[this.self] = Math.max(this.eventHeads[this.self], evt.eventIndex);
-            this.sortEvents();
-        }
-        else {
-            throw 'not a hash event'
-        }
     }
 
     // Raise Event 
@@ -448,40 +450,38 @@ export default class HashThread {
     }
 
     // An event received from the outside world.
-    receiveEvent(_hashEvent, receivedFrom) {
+    receiveEvent(_hashEvent) {
         var hashEvent = HashEvent.create(_hashEvent);
-        if (!receivedFrom) {
-            throw 'required to have receivedFrom parameter'
-        }
         if (hashEvent) {
+
             var evnt = this.eventList.find(t => t.id === hashEvent.id);
             if (!evnt) {
+
                 var newevent = hashEvent.stamp(this.self);
                 this.eventList.push(newevent);
                 this.sortEvents();
                 switch (newevent.type) {
                     case HE.ADD_CONTRIBUTOR:
                         this.raiseEvent(SYSEVENT, {
-                            event: newevent,
-                            from: receivedFrom
+                            event: newevent
+
                         });
                         break;
                     default:
 
                         this.raiseEvent(RECEIVEEVENT, {
-                            event: newevent,
-                            from: receivedFrom
+                            event: newevent
                         });
                         break;
                 }
             }
             else {
+
                 switch (hashEvent.type) {
                     default:
                         this.raiseEvent(UPDATEEVENT, {
                             update: hashEvent,
-                            original: evnt,
-                            from: receivedFrom
+                            original: evnt
                         });
                         break;
                 }
