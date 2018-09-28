@@ -15,6 +15,7 @@ export default class HashLine {
             //You have to give your self an identity;
             throw 'Hashline: self required';
         }
+        this.policy = {};
         this.threads = {};
         this.threadListeners = {};
         this.name = name;
@@ -23,6 +24,10 @@ export default class HashLine {
         this.stateMatchines = {};
         this.contributors = contributors || [self];
         this.contributors.sort();
+
+    }
+    setPolicy(policy) {
+        this.policy = { ...policy };
     }
     assignMachine(stateMachineConstructor, thread) {
         thread = thread || MEMBERSHIP_THREAD;
@@ -39,6 +44,54 @@ export default class HashLine {
     assignTails(tails, thread) {
         var _thread = this.getThread(thread);
         _thread.eventTails = tails;
+    }
+    applyPolicy() {
+        var me = this;
+        Object.keys(me.threads).map(key => {
+
+            if (me.policy && me.policy.maximumUnfinishedEvents) {
+                var thread = me.threads[key].thread;
+                var incomplete = thread.getIncompleteEventCount();
+                if (incomplete >= me.policy.maximumUnfinishedEvents) {
+                    var ops = me.getContributorsToCut(me.policy, thread);
+                    var { cuttable, time } = ops;
+                    var _contributors = thread.getContributors().filter(t => {
+                        return cuttable.indexOf(t) === -1;
+                    });
+                    me.setContributorsOnThread(_contributors, thread, key, time)
+                }
+            }
+        });
+    }
+    getContributorsToCut(policy, thread) {
+        // potential to change how to decide who gets cut.
+        var evts = thread.getNonConsensusEvents();
+        var counts = {};
+        var earliest = {};
+        evts.map(evt => {
+            var uncontacted = HashEvent.getUncontacted(evt, thread.self);
+            uncontacted.map(c => {
+                counts[c] = counts[c] || 0;
+                counts[c] = counts[c] + 1;
+                if (!earliest[c] || earliest[c].time > evt.time) {
+                    earliest[c] = evt;
+                }
+            })
+        });
+
+        var max;
+        var maximum;
+        Object.keys(counts).map(t => {
+            if (max === undefined) {
+                max = counts[t];
+                maximum = t;
+            }
+            else if (max < counts[t]) {
+                maximum = t;
+                max = counts[t];
+            }
+        })
+        return { cuttable: [maximum], time: earliest[maximum] ? earliest[maximum].time : null };
     }
     applyThread(thread) {
         var { state, events } = this.processState(thread);
@@ -69,7 +122,7 @@ export default class HashLine {
 
         if (events.length) {
             console.log(`events.length : ${events.length}`);
-            console.log(events.map(t=>t.time))
+            console.log(events.map(t => t.time))
             return {
                 minimum: events[0].time,
                 maximum: events[events.length - 1].time
@@ -110,14 +163,15 @@ export default class HashLine {
 
                     var thread = this.getThread(state.threadType);
                     if (thread.threadId === state.thread) {
-                        var completedEvents = HashThread.branchThread(thread, {
-                            contributors: [...state.proposed],
-                            startTime: state.time
-                        });
-                        this.contributors = [...state.proposed];
-                        this.contributors.sort();
-                        thread.eventTails = thread.extractEventTails(completedEvents, state.proposed);
-                        this.processStateEvents(state.threadType, completedEvents);
+                        // var completedEvents = HashThread.branchThread(thread, {
+                        //     contributors: [...state.proposed],
+                        //     startTime: state.time
+                        // });
+                        // this.contributors = [...state.proposed];
+                        // this.contributors.sort();
+                        // thread.eventTails = thread.extractEventTails(completedEvents, state.proposed);
+                        // this.processStateEvents(state.threadType, completedEvents);
+                        this.setContributorsOnThread([...state.proposed], thread, state.threadType, state.time);
                         var membershipThread = this.getThread(MEMBERSHIP_THREAD);
                         membershipThread.eventTails = membershipThread.extractEventTails(events, state.proposed);
                     }
@@ -125,7 +179,17 @@ export default class HashLine {
             }
         }
     }
+    setContributorsOnThread(contributors, thread, threadType, time) {
 
+        var completedEvents = HashThread.branchThread(thread, {
+            contributors,
+            startTime: time
+        });
+        this.contributors = contributors;
+        this.contributors.sort();
+        thread.eventTails = thread.extractEventTails(completedEvents, contributors);
+        this.processStateEvents(threadType, completedEvents);
+    }
     processState(threadId) {
         if (!threadId) {
             throw 'no thread id ';
@@ -178,7 +242,7 @@ export default class HashLine {
                         threadType,
                         tails
                     } = msg.message;
-console.log('JOIN FOUND ------------------')
+                    console.log('JOIN FOUND ------------------')
                     this.assignState(state, threadType);
                     this.assignTails(tails, threadType);
                     break;

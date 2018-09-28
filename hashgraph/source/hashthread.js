@@ -167,6 +167,9 @@ export default class HashThread {
         this.listen(RECEIVEEVENT, this.handleReceivedEvent.bind(this));
         // this.listen(EVENTUPDATED, this.handleUpdatedEvent.bind(this));
     }
+    getContributors() {
+        return [...this.contributors];
+    }
     sortEvents() {
         this.eventList = [...this.eventList.sort((a, b) => {
             if (a.eventSource === b.eventSource) {
@@ -349,6 +352,9 @@ export default class HashThread {
         var found = false;
 
         return me.getCompletedEvents();
+    }
+    getIncompleteEventCount() {
+        return this.getNonConsensusEvents().length;
     }
     getNonConsensusEvents() {
         var me = this;

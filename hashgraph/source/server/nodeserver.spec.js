@@ -34,8 +34,9 @@ describe('Node Server', function () {
     it('can create socket server ', (done) => {
         var _server = NodeServer.createServer(null, true);
         var c = 0;
+        var address = NodeServer.getIpAddress('192');
 
-        var serverSocket = _server.createServer('192.168.1.115', 1323, () => {
+        var serverSocket = _server.createServer(address[0].address, 6323, () => {
             _server.close();
 
         });
@@ -50,9 +51,11 @@ describe('Node Server', function () {
         var _server = NodeServer.createServer(null, true);
         var _server2 = NodeServer.createServer(null, true);
         var c = 0;
+        var address = NodeServer.getIpAddress('192');
 
-        _server2.createServer('192.168.1.115', 1423 + c);
-        var serverSocket = _server.connectSocket('192.168.1.115', 1423 + c, (res) => {
+
+        _server2.createServer(address[0].address, 1423 + c);
+        var serverSocket = _server.connectSocket(address[0].address, 1423 + c, (res) => {
             _server2.close();
             _server.close();
             done();
