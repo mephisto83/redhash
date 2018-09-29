@@ -1,6 +1,7 @@
 let http = require('http');
 var net = require('net');
 let os = require('os');
+// import serverchild from './serverchild';
 import ServerSocket from './serversocket';
 export const LISTENING = 'listening';
 export default class NodeServer {
@@ -18,6 +19,7 @@ export default class NodeServer {
         this.poweredBy = 'red-hash';
 
     }
+
     close() {
         var me = this;
         if (this.servers) {
@@ -39,6 +41,7 @@ export default class NodeServer {
                 console.log('--- closing socket server')
             })
         }
+        
     }
     get serverCount() {
         return (this.servers || []).length;
@@ -231,6 +234,11 @@ export default class NodeServer {
     static createServer(config, skip) {
         return new NodeServer(config, skip);
     }
+    static proxyServer() {
+        var server = new NodeServer(null, true);
+        server.proxy = true;
+        return server;
+    }
     //Deprecated
     createSocketServer(addressInfo, port, callback) {
         return new Promise((resolve, fail) => {
@@ -255,17 +263,18 @@ export default class NodeServer {
     }
     connectSocket(address, port, callback) {
         var me = this;
-        var socket = new net.Socket();
+        console.log(`connect socket ${address}:${port}`);
         var serverSocket = new ServerSocket({
             address,
-            port
-        });
-        serverSocket.setSocket(socket);
-        serverSocket.connect(port, address, callback);
-        serverSocket.onReceived = (message => {
-            if (me.onReceived) {
-                me.onReceived(address, port, message);
-            }
+            port,
+            connect: true,
+            callback,
+            proxy: this.proxy,
+            onReceived: (message => {
+                if (me.onReceived) {
+                    me.onReceived(address, port, message);
+                }
+            })
         });
         me.socketServers[`${address} ${port}`] = (serverSocket);
 
@@ -278,31 +287,42 @@ export default class NodeServer {
         }
         return Promise.reject('no server by that address');
     }
+
     createServer(address, port, callback) {
         var me = this;
         var serverSocket = new ServerSocket({
             address,
-            port
+            port,
+            asServer: true,
+            proxy: this.proxy,
+            startServer: true,
+            callback,
+            onReceived: (message => {
+                if (me.onReceived) {
+                    me.onReceived(address, port, message);
+                }
+            })
         });
         console.log('create server')
-        var server = net.createServer(function (socket) {
-            console.log('---------------- create server -----------------')
-            serverSocket.setSocket(socket);
-            if (callback) {
-                callback();
-            }
-        });
-
         me.socketServers[`${address} ${port}`] = (serverSocket);
-        serverSocket.onReceived = (message => {
-            if (me.onReceived) {
-                me.onReceived(address, port, message);
-            }
-        });
-        server.listen(port, address);
-        serverSocket.setServer(server);
+
 
         return serverSocket;
+    }
+
+    static childProcess(callback) {
+        const cp = require('child_process');
+        const n = cp.fork(`${__dirname}/serverchild.js`);
+
+        n.on('message', (m) => {
+            console.log('PARENT got message:');
+            if (callback)
+                callback();
+        });
+
+        n.send({ hello: 'world' });
+
+        return n;
     }
 
     static getIpAddress(startsWith) {

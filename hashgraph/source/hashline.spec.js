@@ -2094,8 +2094,8 @@ describe('HashLine', function () {
         });
     });
 
-    it('process state machines , approved, async, continue with 3rd line , sent init to 3rd line, remove a person', (done) => {
-        this.timeout(10000);
+    it('process state machines , approved, async, continue with 3rd line , sent init to 3rd line, remove a person 2', (done) => {
+        this.timeout(20000);
         var self = 'self';
         var person = 'person';
         var person2 = 'person2';
@@ -2127,7 +2127,7 @@ describe('HashLine', function () {
                 return new Promise(resolve => {
                     setTimeout(() => {
                         resolve();
-                    }, 80)
+                    }, 100)
                 })
             });
         }
@@ -2159,109 +2159,125 @@ describe('HashLine', function () {
 
         Promise.resolve().then(() => {
             console.log('opening listener');
-            return tms.openListener({ address: '192', port: 4000, id: person })
+            return tms.openListener({
+                address: '192',
+                port: 4000,
+                id: person
+            });
         }).then(res => {
             console.log('connecting');
-            return tms2.connect({ address: res.address, port: res.port, id: self }).then(() => {
+            return tms2.connect({
+                address: res.address,
+                port: res.port,
+                id: self
+            }).then(() => {
                 return res;
             });
         }).then((res) => {
-            return tms.isOpen({ address: res.address, port: res.port, id: self });
-        }).then(() => {
+            return tms.isOpen({
+                address: res.address,
+                port: res.port,
+                id: self
+            });
+        }).then(sendMesses).then(() => {
             line.sendEvent({
                 type: MA.INITIALIZE_STATE
             }, ET.MEMBERSHIP)
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.REQUEST_CONTRIBUTOR_ADD,
+                connectionInfo: new IConnectionInfo(person2, {
+                    thread: threadid,
+                    threadType: EVENT_THREAD
+                })
+            }, ET.MEMBERSHIP);
+
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+            console.log(line.threads[MEMBERSHIP_THREAD].thread.eventList[0])
+        }).then(sendMesses).then(() => {
+            line2.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: person,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.ADD_CONTRIBUTOR,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 1' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 3' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 4' });
+            line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' });
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.UPDATE_THREAD,
+                from: self,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var { state, time } = line.processState(EVENT_THREAD);
+            line.sendEvent({
+                type: MA.THREAD_CUT_OFF,
+                from: self,
+                time: 2000,
+                storedState: {
+                    EVENT_THREAD: {
+                        state,
+                        time
+                    }
+                },
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var range = line.getCutRanges(EVENT_THREAD);
+            line.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: self,
+                time: 2000,
+                range,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var range = line2.getCutRanges(EVENT_THREAD);
+            line2.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: person,
+                time: 2000,
+                range,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+
+        }).then(sendMesses).then(() => {
+            var newstate = line.processState(MEMBERSHIP_THREAD);
+            var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+            assert.ok(newstate);
+            assert.ok(newstate2);
+            console.log(line.membershipThread.getCompletedEvents().length);
+            console.log(line.membershipThread.eventList.length);
+            console.log(line.membershipThread.eventList[0]);
+            console.log(newstate.state);
+            console.log(newstate2.state);
+            console.log('here');
+            console.log(line.getEventsToSend().length);
+            assert.ok(newstate2.state.state === MA.THREAD_CUT_APPROVED, `${newstate2.state.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+            assert.ok(newstate.state.state === MA.THREAD_CUT_APPROVED);
+
+            //Next step
+            //Setup the new line and pass the state.
+            line3 = new HashLine(lineName, person2, [...contributors, person2]);
+            line3.initialize(threadid);
+            line3.assignMachine(msmConstructor);
+            line3.assignMachine(csm, EVENT_THREAD);
         })
-            .then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.REQUEST_CONTRIBUTOR_ADD,
-                    connectionInfo: new IConnectionInfo(person2, {
-                        thread: threadid,
-                        threadType: EVENT_THREAD
-                    })
-                }, ET.MEMBERSHIP);
-
-            }).then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.ACCEPT_CONTRIBUTOR_ADD,
-                    from: self,
-                    name: person2
-                }, ET.MEMBERSHIP);
-                console.log(line.threads[MEMBERSHIP_THREAD].thread.eventList[0])
-            }).then(sendMesses).then(() => {
-                line2.sendEvent({
-                    type: MA.ACCEPT_CONTRIBUTOR_ADD,
-                    from: person,
-                    name: person2
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.ADD_CONTRIBUTOR,
-                    from: self,
-                    name: person2
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 1' });
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 3' });
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 4' });
-                line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' });
-            }).then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.UPDATE_THREAD,
-                    from: self,
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                var { state, time } = line.processState(EVENT_THREAD);
-                line.sendEvent({
-                    type: MA.THREAD_CUT_OFF,
-                    from: self,
-                    time: 2000,
-                    storedState: {
-                        EVENT_THREAD: {
-                            state,
-                            time
-                        }
-                    },
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                var range = line.getCutRanges(EVENT_THREAD);
-                line.sendEvent({
-                    type: MA.THREAD_CUT_APPROVAL,
-                    from: self,
-                    time: 2000,
-                    range,
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                var range = line2.getCutRanges(EVENT_THREAD);
-                line2.sendEvent({
-                    type: MA.THREAD_CUT_APPROVAL,
-                    from: person,
-                    time: 2000,
-                    range,
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-
-            }).then(sendMesses).then(() => {
-                var newstate = line.processState(MEMBERSHIP_THREAD);
-                var newstate2 = line2.processState(MEMBERSHIP_THREAD);
-                assert.ok(newstate);
-                assert.ok(newstate2);
-                console.log(newstate.state);
-                console.log(newstate2.state);
-                assert.ok(newstate2.state.state === MA.THREAD_CUT_APPROVED, `${newstate2.state.state} !== ${MA.THREAD_CUT_APPROVAL}`);
-                assert.ok(newstate.state.state === MA.THREAD_CUT_APPROVED);
-
-                //Next step
-                //Setup the new line and pass the state.
-                line3 = new HashLine(lineName, person2, [...contributors, person2]);
-                line3.initialize(threadid);
-                line3.assignMachine(msmConstructor);
-                line3.assignMachine(csm, EVENT_THREAD);
-            })
             .then(sendMesses)
             .then(() => {
 
@@ -2499,7 +2515,7 @@ describe('HashLine', function () {
             });
     });
 
-    it.only('if an agent become unavailable after a certain "period", agents will automatically cut them ', (done) => {
+    it('if an agent become unavailable after a certain "period", agents will automatically cut them ', (done) => {
         this.timeout(10000);
         var self = 'self';
         var person = 'person';
@@ -2815,7 +2831,7 @@ describe('HashLine', function () {
                 assert.ok(line3.eventThread.eventList.length === 0, 'line3 incorrect number of events , 0 != ' + line3.eventThread.eventList.length);
 
                 line.applyPolicy();
-                line2.applyPolicy();                
+                line2.applyPolicy();
 
                 line.applyThread(EVENT_THREAD);
                 line2.applyThread(EVENT_THREAD);
@@ -2836,5 +2852,109 @@ describe('HashLine', function () {
             }).then(() => {
                 done();
             });
+    });
+
+
+    it('process state machines , approved, async, continue with 3rd line , sent init to 3rd line, remove a person 2', (done) => {
+        this.timeout(20000);
+        var self = 'self';
+        var person = 'person';
+        var person2 = 'person2';
+        var contributors = [self, person];
+        var threadid = 'thread-1';
+        var lineName = 'line name for this line';
+        var line = new HashLine(lineName, self, [...contributors]);
+        var line2 = new HashLine(lineName, person, [...contributors]);
+        var line3;
+        line.initialize(threadid);
+        line2.initialize(threadid);
+        var tms = new SocketMessageService(line.name);
+        var tmsconnections = [];
+
+        var tms3;
+        var sendMesses = function () {
+            // if (tms3) {
+            //     console.log('sending on tms3');
+            // }
+            console.log('send message start ---------------------- ')
+            var p = Promise.all([
+                tms.sendMessages(self),
+                tms2.sendMessages(person),
+                tms3 ? tms3.sendMessages(person2) : null
+            ].filter(t => t));
+            // SocketMessageService.globalStep();
+            return p.then(() => {
+                console.log('---------------------- send message complete');
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        resolve();
+                    }, 100)
+                })
+            });
+        }
+
+        var msmConstructor = function () {
+            return new MembershipStateMachine({
+                contributors
+            });
+        }
+        var csm = function () {
+            return new CatStateMachine({
+            });
+        }
+        line.assignMachine(msmConstructor);
+        line.assignMachine(csm, EVENT_THREAD);
+
+        line2.assignMachine(msmConstructor);
+        line2.assignMachine(csm, EVENT_THREAD);
+
+        var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+
+        tms.assignLine(line);
+
+        var tms2 = new SocketMessageService(line2.name);
+        tms2.assignLine(line2);
+
+        var EVENT = 'EVENT';
+
+
+        Promise.resolve().then(() => {
+            console.log('opening listener');
+            return tms.openListener({
+                address: '192',
+                port: 4000,
+                id: person
+            });
+        }).then(res => {
+            console.log('connecting');
+            return tms2.connect({
+                address: res.address,
+                port: res.port,
+                id: self
+            }).then(() => {
+                return res;
+            });
+        }).then((res) => {
+            return tms.isOpen({
+                address: res.address,
+                port: res.port,
+                id: self
+            });
+        }).then(() => {
+            line.sendEvent({
+                type: MA.INITIALIZE_STATE
+            }, ET.MEMBERSHIP)
+        }).then(() => {
+        }).then(sendMesses).then(() => {
+            assert.ok(line.membershipThread.eventList.length === 1);
+            assert.ok(line2.membershipThread.eventList.length === 1);
+            console.log('closing stuff o')
+            tms.close();
+            tms2.close();
+            if (tms3)
+                tms3.close();
+        }).then(() => {
+            done();
+        });
     });
 });

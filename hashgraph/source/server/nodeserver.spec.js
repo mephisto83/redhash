@@ -46,6 +46,8 @@ describe('Node Server', function () {
         done();
     });
 
+
+
     it('can listen to a socket', (done) => {
 
         var _server = NodeServer.createServer(null, true);
@@ -163,5 +165,139 @@ describe('Node Server', function () {
         Promise.all([p, p2]).then(() => {
             _server.send(address[0].iface.address, port, { sending: 'a message' });
         })
+    });
+
+
+    it('can use a child process to excute everything', (done) => {
+        var address = NodeServer.getIpAddress('192');
+
+        var _server2 = NodeServer.proxyServer();
+        var _server = NodeServer.createServer(null, true);
+        var received = false;
+        var onReceived = ((address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            _server.close();
+            _server2.close();
+            done();
+        });
+        _server.onReceived = onReceived;
+        _server2.onReceived = onReceived;
+        console.log(address);
+        var port = 1243;
+
+        _server.createServer(address[0].iface.address, port, res => {
+            console.log('created server')
+
+        });
+
+        _server2.connectSocket(address[0].iface.address, port, res => {
+            console.log('connected to socket')
+            _server2.send(address[0].iface.address, port, { sending: 'a message' });
+        });
+    });
+
+    it('can use a child process to excute everything 2', (done) => {
+        var address = NodeServer.getIpAddress('192');
+
+        var _server2 = NodeServer.createServer(null, true);
+        var _server = NodeServer.proxyServer();
+        var received = false;
+        var onReceived = ((address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            _server.close();
+            _server2.close();
+            done();
+        });
+        _server.onReceived = onReceived;
+        _server2.onReceived = onReceived;
+        console.log(address);
+        var port = 1243;
+
+        _server.createServer(address[0].iface.address, port, res => {
+            console.log('created server')
+
+        });
+
+        _server2.connectSocket(address[0].iface.address, port, res => {
+            console.log('connected to socket')
+            _server2.send(address[0].iface.address, port, { sending: 'a message' });
+        });
+    });
+
+    it('can use a child process to excute everything 3', (done) => {
+        var address = NodeServer.getIpAddress('192');
+
+        var _server2 = NodeServer.proxyServer();
+        var _server = NodeServer.proxyServer();
+        var received = false;
+        var onReceived = ((address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            done();
+        });
+        var r1;
+        var r2;
+        var p1 = new Promise((resolve) => {
+            r1 = resolve;
+        });
+
+        var p2 = new Promise((resolve) => {
+            r2 = resolve;
+        });
+
+        _server.onReceived = (address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            r1();
+            // _server.close();
+            // _server2.close();
+            // done();
+        };
+        _server2.onReceived = (address, port, message) => {
+            received = message;
+            console.log(address)
+            console.log(port);
+            assert.ok(received);
+            console.log(message);
+            r2();
+            // _server.close();
+            // _server2.close();
+            // done();
+        };;
+
+        Promise.all([r1, r2]).then(() => {
+            
+            _server.close();
+            _server2.close();
+            done();
+        });
+        console.log(address);
+        var port = 1243;
+
+        _server.createServer(address[0].iface.address, port, res => {
+            console.log('created server')
+
+        });
+
+        _server2.connectSocket(address[0].iface.address, port, res => {
+            console.log('connected to socket')
+            _server2.send(address[0].iface.address, port, { sending: 'a message' });
+
+            _server.send(address[0].iface.address, port, { sending: 'a message' });
+        });
     });
 });

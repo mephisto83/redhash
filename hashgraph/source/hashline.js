@@ -136,13 +136,10 @@ export default class HashLine {
 
     sendEvent(msg, type) {
         var me = this;
-        console.log('send event')
         if (me.membershipThread && type === ET.MEMBERSHIP) {
-            console.log('send event membership')
             return me.membershipThread.sendEvent(new HashEvent(msg, type, this.contributors, this.name));
         }
         else if (me.eventThread) {
-            console.log('send event event')
             return me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors, this.name));
         }
     }

@@ -27,7 +27,7 @@ export default class SocketMessageService extends MessageService {
     }
     init() {
         var me = this;
-        var _server = NodeServer.createServer(null, true);
+        var _server = NodeServer.proxyServer();
 
         this.server = _server;
         var onReceived = ((address, port, message) => {
@@ -52,8 +52,6 @@ export default class SocketMessageService extends MessageService {
                         console.log('x-reply')
                         console.log('--------------------------------------------');
                     }
-
-
                 }
                 else {
                     if (me.debug) {
@@ -63,6 +61,7 @@ export default class SocketMessageService extends MessageService {
                     }
                 }
             } catch (e) {
+                console.error(e);
                 if (me.debug)
                     console.log(e);
             }
@@ -190,21 +189,13 @@ export default class SocketMessageService extends MessageService {
         var messages = [];
         var me = this;
         var promises = [];
-        console.log('sending messages on lines')
         Object.keys(me.lines).map(t => {
             var line = me.lines[t];
-            console.log(`line  - ${t}`)
             messages = line.getMessageToSend() || [];
             (messages.map(t => {
                 (line.getNextPossibleDestinationsFor(t).map(dests => {
-                    console.log('destinations ');
-                    console.log(dests);
                     ([dests].map(to => {
                         promises.push(me.send(t, to, from).then(res => {
-                            // var service = services.find(t => t.id === from);
-                            // if (service) {
-                            //     service.sentEventSuccessfully(res);
-                            // }
                         }));
                     }));
                 }));
