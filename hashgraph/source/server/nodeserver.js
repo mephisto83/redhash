@@ -239,6 +239,12 @@ export default class NodeServer {
 
         return server;
     }
+    addController(controller) {
+        var me = this;
+        controller.getHandlers().map(t => {
+            me.addHandler(t.match, t.handler)
+        });
+    }
     _handleRequest(request, response, config) {
         var me = this;
 

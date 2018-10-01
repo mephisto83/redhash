@@ -1,6 +1,7 @@
 import assert from 'assert';
 import NodeServer from './nodeserver';
 import * as NS from './nodeserver';
+import RedHashController from './redhashcontroller';
 let http = require('http');
 describe('Node Server', function () {
     it('can get ip address', () => {
@@ -361,6 +362,18 @@ describe('Node Server', function () {
 
         // server.close();
     });
+
+
+    it('add redhash controller', () => {
+        var address = NodeServer.getIpAddress('192')[0];
+        var server = NodeServer.createHttpServer({
+            address: address.address,
+            port: 14812
+        });
+
+        server.addController(new RedHashController());
+        server.close();
+    })
 
     it('can use a child process to excute everything 3', (done) => {
         var address = NodeServer.getIpAddress('192');
