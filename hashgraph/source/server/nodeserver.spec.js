@@ -1,6 +1,7 @@
 import assert from 'assert';
 import NodeServer from './nodeserver';
 import * as NS from './nodeserver';
+let http = require('http');
 describe('Node Server', function () {
     it('can get ip address', () => {
         var address = NodeServer.getIpAddress();
@@ -232,6 +233,135 @@ describe('Node Server', function () {
         });
     });
 
+    it('can create server', () => {
+        var address = NodeServer.getIpAddress('192');
+        var server = NodeServer.createHttpServer({
+            address: address.address,
+            port: 9142
+        });
+
+        assert.ok(server);
+
+        server.close();
+    });
+
+    it('can accept a call', (done) => {
+        var address = NodeServer.getIpAddress('192')[0];
+        var port = 8812;
+        console.log(address);
+        var server = NodeServer.createHttpServer({
+            address: address.address,
+            port: port
+        }, () => {
+            console.log('listening')
+            const postData = JSON.stringify({
+                'msg': 'Hello World!'
+            });
+
+            const options = {
+                hostname: address.address,
+                port: port,
+                path: '',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
+            };
+
+            const req = http.request(options, (res) => {
+                console.log(`STATUS: ${res.statusCode}`);
+                console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    console.log(`BODY: ${chunk}`);
+                });
+                res.on('end', () => {
+                    console.log('No more data in response.');
+                    server.close();
+                    done();
+                });
+            });
+
+            req.on('error', (e) => {
+                console.error(`problem with request: ${e.message}`);
+            });
+
+            // write data to request body
+            req.write(postData);
+            req.end();
+        });
+
+        assert.ok(server);
+
+        // server.close();
+    });
+
+    it('can add a handler', (done) => {
+        var address = NodeServer.getIpAddress('192')[0];
+        var port = 8814;
+        var handled = false;
+        console.log(address);
+        var path = '/get/lines';
+        var server = NodeServer.createHttpServer({
+            address: address.address,
+            port: port
+        }, () => {
+            server.addHandler((headers, method, url) => {
+                console.log('check handler')
+                if (method === 'POST' && url === path) {
+                    return true;
+                }
+                return false;
+            }, () => {
+                handled = true;
+            });
+
+            console.log('listening')
+            const postData = JSON.stringify({
+                'msg': 'Hello World!'
+            });
+
+            const options = {
+                hostname: address.address,
+                port: port,
+                path: path,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
+            };
+
+            const req = http.request(options, (res) => {
+                console.log(`STATUS: ${res.statusCode}`);
+                console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    console.log(`BODY: ${chunk}`);
+                });
+                res.on('end', () => {
+                    console.log('No more data in response.');
+                    server.close();
+                    assert.ok(handled);
+                    done();
+                });
+            });
+
+            req.on('error', (e) => {
+                console.error(`problem with request: ${e.message}`);
+            });
+
+            // write data to request body
+            req.write(postData);
+            req.end();
+        });
+
+        assert.ok(server);
+
+        // server.close();
+    });
+
     it('can use a child process to excute everything 3', (done) => {
         var address = NodeServer.getIpAddress('192');
 
@@ -280,7 +410,7 @@ describe('Node Server', function () {
         };;
 
         Promise.all([r1, r2]).then(() => {
-            
+
             _server.close();
             _server2.close();
             done();

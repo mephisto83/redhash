@@ -12,11 +12,12 @@ export default class NodeServer {
         this.socketServers = {};
         this.handlers = [];
         this.listeners = [];
+        this.servers = [];
         this.config = config;
-        this.addDefaultHandler();
-        if (!skipCreate)
+        if (!skipCreate) {
+            this.addDefaultHandler();
             this.createServers(config);
-        this.poweredBy = 'red-hash';
+        } this.poweredBy = 'red-hash';
 
     }
 
@@ -41,7 +42,7 @@ export default class NodeServer {
                 console.log('--- closing socket server')
             })
         }
-        
+
     }
     get serverCount() {
         return (this.servers || []).length;
@@ -229,6 +230,90 @@ export default class NodeServer {
         }
 
         return ok;
+    }
+
+    static createHttpServer(config, callback) {
+        var server = new NodeServer(null, true);
+
+        server._createHttpServer(config, callback);
+
+        return server;
+    }
+    _handleRequest(request, response, config) {
+        var me = this;
+
+        console.log('handle request');
+        const { headers, method, url } = request;
+        const userAgent = headers['user-agent'];
+
+        let body = [];
+
+        request.on('error', (err) => {
+            console.error(err);
+        }).on('data', (chunk) => {
+            body.push(chunk);
+        }).on('end', () => {
+            body = Buffer.concat(body).toString();
+            // BEGINNING OF NEW STUFF
+
+            response.statusCode = 200;
+            response.on('error', (err) => {
+                // console.error(err);
+                response.statusCode = 500;
+            });
+
+            response.setHeader('Content-Type', 'application/json');
+            response.setHeader('Access-Control-Allow-Origin', '*');
+            response.setHeader('Access-Control-Allow-Headers', '*');
+            response.setHeader('X-Powered-By', me.poweredBy);
+            // Note: the 2 lines above could be replaced with this next one:
+            // response.writeHead(200, {'Content-Type': 'application/json'})
+
+            const responseBody = { headers, method, url, body };
+            let ops = { headers, method, url, request, response, config, body };
+            var res = me._getHandler(ops);
+
+            if (res && res.handler && typeof res.handler === 'function') {
+                res.handler(ops)
+            }
+
+            response.end();
+        });
+    }
+
+    _getHandler(ops) {
+        var { headers, method, url } = ops;
+        console.log('check handlers')
+        return this.handlers.find(t => {
+            return t.match(headers, method, url)
+        })
+    }
+
+    _createHttpServer(config, callback) {
+        var me = this;
+        var server = http.createServer(function (req, res) {
+            me._handleRequest(req, res, config);
+        });
+
+        server.listen(config.port, config.address, (res) => {
+            console.log('listen on port ' + config.port)
+            me.raiseEvent(LISTENING, { server, res })
+            if (callback) {
+                callback();
+            }
+        });
+        server.on('error', (e) => {
+            if (e.code === 'EADDRINUSE') {
+                console.log('Address in use');
+                setTimeout(() => {
+                    server.close();
+                    // server.listen(PORT, HOST);
+                }, 1000);
+            }
+            console.log(e);
+        });
+        this.servers.push(server);
+        return server
     }
 
     static createServer(config, skip) {
