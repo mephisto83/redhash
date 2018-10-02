@@ -373,7 +373,8 @@ describe('Node Server', function () {
 
         server.addController(new RedHashController());
         server.close();
-    })
+    });
+    
 
     it('can use a child process to excute everything 3', (done) => {
         var address = NodeServer.getIpAddress('192');
