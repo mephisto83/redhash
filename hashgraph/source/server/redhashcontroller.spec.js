@@ -2,6 +2,7 @@ import assert from 'assert';
 import NodeServer from './nodeserver';
 import * as NS from './nodeserver';
 import RedHashController from './redhashcontroller';
+import * as RDH from './redhashcontroller';
 let http = require('http');
 describe('Node Server', function () {
     it('can red hash controller', () => {
@@ -54,6 +55,15 @@ describe('Node Server', function () {
         var controller = new RedHashController();
         var address = NodeServer.getIpAddress('192')[0];
 
+        controller._requestConnection({
+            id: 'you',
+            address: address.address,
+            port: 14814,
+            line: 'line'
+        });
+
+        assert.ok(controller.pendingRequests);
+        assert.ok(controller.pendingRequests.filter(t => RDH.CONNECT_END_POINT).length === 1);
     });
 
 }); 

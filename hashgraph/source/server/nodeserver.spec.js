@@ -2,6 +2,7 @@ import assert from 'assert';
 import NodeServer from './nodeserver';
 import * as NS from './nodeserver';
 import RedHashController from './redhashcontroller';
+import * as RHS from './redhashcontroller';
 let http = require('http');
 describe('Node Server', function () {
     it('can get ip address', () => {
@@ -364,17 +365,123 @@ describe('Node Server', function () {
     });
 
 
-    it('add redhash controller', () => {
+    it('add redhash controller', (done) => {
         var address = NodeServer.getIpAddress('192')[0];
         var server = NodeServer.createHttpServer({
             address: address.address,
             port: 14812
+        }, () => {
+            server.addController(new RedHashController());
+            server.close();
+            done();
         });
 
-        server.addController(new RedHashController());
-        server.close();
     });
-    
+
+    it('can handle a request controller', (done) => {
+        var address = NodeServer.getIpAddress('192')[0];
+        var server = NodeServer.createHttpServer({
+            address: address.address,
+            port: 14812
+        }, () => {
+            var controller = new RedHashController();
+            var controller2 = new RedHashController();
+            server.addController(controller);
+            var server2 = NodeServer.createHttpServer({
+                address: address.address,
+                port: 14861
+            }, () => {
+                server2.addController(controller2);
+                server2.proxy = true;
+                console.log('create server 2');
+                server.proxy = true;
+                controller.sendHttp({
+                    body: {
+                        line: 'line',
+                        address: address.address,
+                        port: 12000
+                    },
+                    path: RHS.REQUEST_CONNECTION_PATH,
+                    address: address.address,
+                    method: 'POST',
+                    port: 14861
+                }).then(res => {
+                    assert.ok(res);
+                    assert.ok(res.ok);
+                    assert.ok(controller2.pendingRequests);
+                    assert.ok(controller2.pendingRequests.length === 1);
+                    assert.ok(controller.pendingRequests);
+                    assert.ok(controller.pendingRequests.length === 0);
+                    server.close();
+                    server2.close();
+                    done();
+                });
+            });
+        });
+
+
+
+
+    });
+
+
+    it('can handle a request controller, then process requests', (done) => {
+        var address = NodeServer.getIpAddress('192')[0];
+        var server2port = 14239;
+        var socketport = 12001;
+        var server = NodeServer.createHttpServer({
+            address: address.address,
+            port: 14812
+        }, () => {
+            var controller = new RedHashController();
+            var controller2 = new RedHashController();
+            server.addController(controller);
+            var server2 = NodeServer.createHttpServer({
+                address: address.address,
+                port: server2port
+            }, () => {
+                server2.addController(controller2);
+                server2.proxy = true;
+                console.log('create server 2');
+                server.proxy = true;
+                server.createServer(address.address, socketport, () => {
+                    console.log('server created, send http request')
+                    controller.sendHttp({
+                        body: {
+                            line: 'line',
+                            address: address.address,
+                            port: socketport,
+                            id: 'me'
+                        },
+                        path: RHS.REQUEST_CONNECTION_PATH,
+                        address: address.address,
+                        method: 'POST',
+                        port: server2port
+                    }).then(res => {
+                        assert.ok(res);
+                        assert.ok(res.ok);
+                        assert.ok(controller2.pendingRequests);
+                        assert.ok(controller2.pendingRequests.length === 1);
+                        assert.ok(controller.pendingRequests);
+                        assert.ok(controller.pendingRequests.length === 0);
+
+                        return controller2.processRequests().then(() => {
+                            assert.ok(controller2.pendingRequests);
+                            assert.ok(controller2.pendingRequests.length === 0);
+                            server.close();
+                            server2.close();
+                            done();
+                        });
+                    });
+                });
+            });
+        });
+
+
+
+
+    });
+
 
     it('can use a child process to excute everything 3', (done) => {
         var address = NodeServer.getIpAddress('192');

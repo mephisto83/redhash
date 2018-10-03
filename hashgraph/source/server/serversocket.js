@@ -11,6 +11,7 @@ export default class ServerSocket {
             asServer,
             startServer,
             onReceived,
+            error,
             connect,
             port,
             proxy,
@@ -38,7 +39,7 @@ export default class ServerSocket {
         if (connect) {
             var socket = new net.Socket();
             this.setSocket(socket);
-            this.connect(port, address, callback);
+            this.connect(port, address, callback, error);
         }
         if (asServer) {
             console.log('build server')
@@ -81,6 +82,7 @@ export default class ServerSocket {
                 case 'setupChildProxy':
                     if (callback) {
                         callback();
+                        callback = null;
                     }
                     break;
                 case 'send':
@@ -91,6 +93,12 @@ export default class ServerSocket {
                     break;
                 case 'onReceived':
                     me.received(m.message);
+                    break;
+                case 'listening':
+                    if (callback) {
+                        callback();
+                        callback = null;
+                    }
                     break;
             }
         });
@@ -153,7 +161,7 @@ export default class ServerSocket {
         var me = this;
         this.server.listen(this.port, this.address);
     }
-    connect(port, address, callback) {
+    connect(port, address, callback, error) {
         var me = this;
         if (me.socket && me.socket.connect) {
 
@@ -169,7 +177,11 @@ export default class ServerSocket {
                 }
             });
         }
-        else { console.log('no socket to connect') }
+        else {
+            if (error) {
+                error();
+            } console.log('no socket to connect')
+        }
     }
     close() {
         var me = this;

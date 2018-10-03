@@ -168,7 +168,10 @@ function closed(hadError) {
 
 function listen() {
     var me = this;
-    this.server.listen(this.port, this.address);
+    this.server.listen(this.port, this.address, () => {
+        process.send({ func: 'listening' })
+
+    });
     console.log('child is listening');
 }
 

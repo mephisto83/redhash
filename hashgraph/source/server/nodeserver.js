@@ -239,8 +239,16 @@ export default class NodeServer {
 
         return server;
     }
+    sendConnectionRequest(res) {
+        if (this.server) {
+            this.send({
+                ...res
+            })
+        }
+    }
     addController(controller) {
         var me = this;
+        controller.server = this;
         controller.getHandlers().map(t => {
             me.addHandler(t.match, t.handler)
         });
@@ -306,6 +314,7 @@ export default class NodeServer {
             me.raiseEvent(LISTENING, { server, res })
             if (callback) {
                 callback();
+                callback = null;
             }
         });
         server.on('error', (e) => {
@@ -352,13 +361,14 @@ export default class NodeServer {
             return serverSocket;
         })
     }
-    connectSocket(address, port, callback) {
+    connectSocket(address, port, callback, error) {
         var me = this;
         console.log(`connect socket ${address}:${port}`);
         var serverSocket = new ServerSocket({
             address,
             port,
             connect: true,
+            error,
             callback,
             proxy: this.proxy,
             onReceived: (message => {
@@ -377,6 +387,51 @@ export default class NodeServer {
             return server.send(message);
         }
         return Promise.reject('no server by that address');
+    }
+    sendHttp(request) {
+        return new Promise((resolve, fail) => {
+            const postData = JSON.stringify(request.body);
+            var { port, path, method, address } = request;
+            const options = {
+                hostname: address,
+                port: port,
+                path: path || '',
+                method: method || 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
+            };
+
+            var _data = '';
+
+            const req = http.request(options, (res) => {
+                console.log(`STATUS: ${res.statusCode}`);
+                console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    console.log(`BODY: ${chunk}`);
+                    _data = _data + chunk;
+                });
+                res.on('end', () => {
+
+                    try {
+                        resolve(JSON.parse(_data));
+                    } catch (e) {
+                        resolve(_data);
+                    }
+                });
+            });
+
+            req.on('error', (e) => {
+                console.error(`problem with request: ${e.message}`);
+                fail(e);
+            });
+
+            // write data to request body
+            req.write(postData);
+            req.end();
+        });
     }
 
     createServer(address, port, callback) {
