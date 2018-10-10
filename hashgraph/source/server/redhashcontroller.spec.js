@@ -21,7 +21,7 @@ describe('Node Server', function () {
 
     it('can get add address book', () => {
         var controller = new RedHashController();
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
         controller.addAddress({
             id: 'me',
             addresses: [{
@@ -38,7 +38,7 @@ describe('Node Server', function () {
 
     it('can get and add address book', () => {
         var controller = new RedHashController();
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
         controller.addAddress({
             id: 'me',
             addresses: [{
@@ -53,7 +53,7 @@ describe('Node Server', function () {
 
     it('can create new endpoint for connecting', () => {
         var controller = new RedHashController();
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
 
         controller._requestConnection({
             id: 'you',

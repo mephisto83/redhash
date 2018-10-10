@@ -9,11 +9,11 @@ describe('Node Server', function () {
         var address = NodeServer.getIpAddress();
         console.log(address);
         assert.ok(address);
-        console.log(address.filter(t => t.iface && t.iface.address.startsWith('192')))
+        console.log(address.filter(t => t.iface && t.iface.address.startsWith('127')))
     });
 
     it('can get and ip address starting with ', () => {
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
         console.log(address);
         assert.ok(address);
         assert.ok(address.length === 1)
@@ -37,7 +37,7 @@ describe('Node Server', function () {
     it('can create socket server ', (done) => {
         var _server = NodeServer.createServer(null, true);
         var c = 0;
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
 
         var serverSocket = _server.createServer(address[0].address, 6323, () => {
             _server.close();
@@ -56,7 +56,7 @@ describe('Node Server', function () {
         var _server = NodeServer.createServer(null, true);
         var _server2 = NodeServer.createServer(null, true);
         var c = 0;
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
 
 
         _server2.createServer(address[0].address, 1423 + c);
@@ -69,7 +69,7 @@ describe('Node Server', function () {
     });
 
     it('can send messages over a socket', (done) => {
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
 
         var _server2 = NodeServer.createServer(null, true);
         var _server = NodeServer.createServer(null, true);
@@ -100,7 +100,7 @@ describe('Node Server', function () {
     });
 
     it('can send messages over a socket 2', (done) => {
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
 
         var _server2 = NodeServer.createServer(null, true);
         var _server = NodeServer.createServer(null, true);
@@ -131,7 +131,7 @@ describe('Node Server', function () {
     });
 
     it('can send messages over a socket 3', (done) => {
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
 
         var _server2 = NodeServer.createServer(null, true);
         var _server = NodeServer.createServer(null, true);
@@ -172,7 +172,7 @@ describe('Node Server', function () {
 
 
     it('can use a child process to excute everything', (done) => {
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
 
         var _server2 = NodeServer.proxyServer();
         var _server = NodeServer.createServer(null, true);
@@ -204,8 +204,8 @@ describe('Node Server', function () {
     });
 
     it('can use a child process to excute everything 2', (done) => {
-        var address = NodeServer.getIpAddress('192');
-
+        var address = NodeServer.getIpAddress('127');
+        console.log(address);
         var _server2 = NodeServer.createServer(null, true);
         var _server = NodeServer.proxyServer();
         var received = false;
@@ -222,21 +222,21 @@ describe('Node Server', function () {
         _server.onReceived = onReceived;
         _server2.onReceived = onReceived;
         console.log(address);
-        var port = 1243;
+        var port = 5243;
 
         _server.createServer(address[0].iface.address, port, res => {
             console.log('created server')
 
+            _server2.connectSocket(address[0].iface.address, port, res => {
+                console.log('connected to socket')
+                _server2.send(address[0].iface.address, port, { sending: 'a message' });
+            });
         });
 
-        _server2.connectSocket(address[0].iface.address, port, res => {
-            console.log('connected to socket')
-            _server2.send(address[0].iface.address, port, { sending: 'a message' });
-        });
     });
 
     it('can create server', () => {
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
         var server = NodeServer.createHttpServer({
             address: address.address,
             port: 9142
@@ -248,7 +248,7 @@ describe('Node Server', function () {
     });
 
     it('can accept a call', (done) => {
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
         var port = 8812;
         console.log(address);
         var server = NodeServer.createHttpServer({
@@ -300,7 +300,7 @@ describe('Node Server', function () {
     });
 
     it('can add a handler', (done) => {
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
         var port = 8814;
         var handled = false;
         console.log(address);
@@ -366,7 +366,7 @@ describe('Node Server', function () {
 
 
     it('add redhash controller', (done) => {
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
         var server = NodeServer.createHttpServer({
             address: address.address,
             port: 14812
@@ -379,7 +379,7 @@ describe('Node Server', function () {
     });
 
     it('can handle a request controller', (done) => {
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
         var server = NodeServer.createHttpServer({
             address: address.address,
             port: 14812
@@ -426,7 +426,7 @@ describe('Node Server', function () {
 
 
     it('can handle a request controller, then process requests', (done) => {
-        var address = NodeServer.getIpAddress('192')[0];
+        var address = NodeServer.getIpAddress('127')[0];
         var server2port = 14239;
         var socketport = 12001;
         var server = NodeServer.createHttpServer({
@@ -484,7 +484,7 @@ describe('Node Server', function () {
 
 
     it('can use a child process to excute everything 3', (done) => {
-        var address = NodeServer.getIpAddress('192');
+        var address = NodeServer.getIpAddress('127');
 
         var _server2 = NodeServer.proxyServer();
         var _server = NodeServer.proxyServer();

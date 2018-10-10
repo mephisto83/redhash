@@ -145,7 +145,8 @@ function ready() {
     console.log('child is ready');
 }
 
-function error() {
+function error(r) {
+    console.log(r);
     console.log('child is erred');
 }
 

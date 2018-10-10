@@ -2160,8 +2160,8 @@ describe('HashLine', function () {
         Promise.resolve().then(() => {
             console.log('opening listener');
             return tms.openListener({
-                address: '192',
-                port: 4000,
+                address: '127',
+                port: 6100,
                 id: person
             });
         }).then(res => {
@@ -2286,7 +2286,7 @@ describe('HashLine', function () {
 
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms2.openListener({ address: '192', port: 4007, id: person2 })
+                    return tms2.openListener({ address: '127', port: 4007, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: person }).then(() => {
@@ -2300,7 +2300,7 @@ describe('HashLine', function () {
             .then(() => {
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms.openListener({ address: '192', port: 4004, id: person2 })
+                    return tms.openListener({ address: '127', port: 4004, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: self }).then(() => {
@@ -2587,7 +2587,7 @@ describe('HashLine', function () {
 
         Promise.resolve().then(() => {
             console.log('opening listener');
-            return tms.openListener({ address: '192', port: 4000, id: person })
+            return tms.openListener({ address: '127', port: 6100, id: person })
         }).then(res => {
             console.log('connecting');
             return tms2.connect({ address: res.address, port: res.port, id: self }).then(() => {
@@ -2698,7 +2698,7 @@ describe('HashLine', function () {
 
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms2.openListener({ address: '192', port: 4007, id: person2 })
+                    return tms2.openListener({ address: '127', port: 4007, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: person }).then(() => {
@@ -2712,7 +2712,7 @@ describe('HashLine', function () {
             .then(() => {
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms.openListener({ address: '192', port: 4004, id: person2 })
+                    return tms.openListener({ address: '127', port: 4004, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: self }).then(() => {
@@ -2921,8 +2921,8 @@ describe('HashLine', function () {
         Promise.resolve().then(() => {
             console.log('opening listener');
             return tms.openListener({
-                address: '192',
-                port: 4000,
+                address: '127',
+                port: 6100,
                 id: person
             });
         }).then(res => {
