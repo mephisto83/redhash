@@ -7,12 +7,16 @@ function setupChildProxy(obj) {
         server,
         address,
         callback,
+        onConnect,
+        onSocketCreated,
         asServer,
         startServer,
         connect,
         port,
         proxy
     } = obj;
+
+
     this.delimiter = '~^!@#';
     this.buffer = '';
     var me = this;
@@ -31,21 +35,25 @@ function setupChildProxy(obj) {
     this.timeout = timeout.bind(this);
     this.setSocket = setSocket.bind(this);
     this.received = received.bind(this);
+    this.close = close.bind(this);
     this.listen = listen.bind(this);
     console.log('server child');
     if (connect) {
         var socket = new net.Socket();
         this.socket = (socket);
-        this.connect(port, address, callback);
+        this.connect(port, address, onConnect);
         this.setSocket(this.socket);
     }
     if (asServer) {
-        console.log('build server');
+        console.log('build server in child process');
         var server = net.createServer(function (socket) {
             console.log('---------------- create server -----------------')
             me.setSocket(socket);
             if (callback) {
                 callback();
+            }
+            if (onSocketCreated) {
+                onSocketCreated();
             }
         });
         this.server = server;
@@ -57,7 +65,24 @@ function setupChildProxy(obj) {
         this.server = server;
     }
 
-
+    function close(callback) {
+        if (server) {
+            server.close();
+            server.unref();
+        }
+        else {
+            console.log('no server');
+        }
+        if (socket) {
+            socket.destroy();
+        }
+        else {
+            console.log('no socket');
+        }
+        if (callback) {
+            callback();
+        }
+    }
 
     function send(message) {
         var me = this;
@@ -169,11 +194,15 @@ function closed(hadError) {
 
 function listen() {
     var me = this;
-    this.server.listen(this.port, this.address, () => {
-        process.send({ func: 'listening' })
+    return new Promise((resolve) => {
 
-    });
-    console.log('child is listening');
+        this.server.listen(this.port, this.address, () => {
+            console.log('child is listening');
+            // process.send({ func: 'listening' })
+            resolve();
+        });
+    })
+
 }
 
 function _connect(port, address, callback) {
@@ -196,21 +225,36 @@ process.on('message', (m) => {
             switch (t) {
                 case 'setupChildProxy':
                     setupChildProxy.bind(server)({
-                        ...m[t], callback: () => {
+                        ...m[t],
+                        onSocketCreated: () => {
+                            process.send({ onSocketCreated: true })
+                        },
+                        onConnect: () => {
                             console.log('child proxy setup')
-                            process.send({ func: t })
+                            process.send({ onConnect: true })
                         }
                     });
                     setupServerSocket(server);
+                    process.send({ func: 'setupChildProxy', guid: m.guid })
                     break
                 case 'send':
                     return server.send(m[t]).then(res => {
-                        process.send({ func: t, id: m.id })
+                        process.send({ func: t, id: m.id, guid: m.guid })
                     })
                     break;
+                case 'kill':
+                    server.close(() => {
+                        process.send({ killed: true, guid: m.guid })
+                    });
+                    break;
                 default:
-                    if (server[t])
-                        server[t](m[t]);
+                    if (server[t]) {
+                        var res = server[t](m[t]);
+                        if (res && res.then)
+                            res.then(() => {
+                                process.send({ guid: m.guid })
+                            })
+                    }
                     break;
             }
         });
@@ -221,6 +265,6 @@ process.on('message', (m) => {
 
 function setupServerSocket(server) {
     server.onReceived = (m) => {
-        process.send({ func: 'onReceived', message: m })
+        process.send({ func: 'onReceived', message: m, guid: m.guid })
     }
 }

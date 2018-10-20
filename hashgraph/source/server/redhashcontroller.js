@@ -3,6 +3,8 @@ const GET = 'GET';
 const POST = 'POST';
 export const CONNECT_END_POINT = 'CONNECT_END_POINT';
 export const REQUEST_CONNECTION_PATH = '/req/connection';
+export const REQUEST_LINES = '/lines';
+export const REQUEST_ADDRESS_BOOK = '/address/book';
 export default class RedHashController {
     constructor() {
         this.handlers = [];
@@ -13,8 +15,9 @@ export default class RedHashController {
     }
 
     init() {
-        this.addHandler(GET, '/lines', this.getLines.bind(this));
+        this.addHandler(GET, REQUEST_LINES, this.getLines.bind(this));
         this.addHandler(POST, REQUEST_CONNECTION_PATH, this.requestConnection.bind(this));
+        this.addHandler(GET, REQUEST_ADDRESS_BOOK, this.getAddressBook.bind(this))
     }
 
     setLines(lines) {
@@ -28,6 +31,10 @@ export default class RedHashController {
     getLines(res) {
         var { headers, method, url, request, response, addressInfo, filteredAddress, config } = res;
         response.write(JSON.stringify(this._getLines(), null, "\t"));
+    }
+    getAddressBook() {
+        var { headers, method, url, request, response, addressInfo, filteredAddress, config } = res;
+        response.write(JSON.stringify(this._getAddressBook(), null, "\t"));
     }
     requestConnection(res) {
         var { headers, method, url, request, response, addressInfo, filteredAddress, config, body } = res;
@@ -71,6 +78,9 @@ export default class RedHashController {
     }
     _getAddress(id) {
         return this.addresses.find(t => t.id === id);
+    }
+    _getAddressBook() {
+        return [...this.addresses]
     }
     _requestConnection(request) {
         if (request && request.id && request.address, request.port && request.line) {

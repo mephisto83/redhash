@@ -1,4 +1,4 @@
-import HashGraph from './index';
+import HashGraph from './hashgraph';
 import HashEvent from './hashevent';
 import { _documentation } from './hashevent';
 import HashLine from './hashline';

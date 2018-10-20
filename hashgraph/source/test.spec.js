@@ -7,7 +7,7 @@
 // var HashMeta = require(`${distpath}/hashmeta`).default;
 // var TestMessageService = require(`${distpath}/testmessageservice`).default;
 import assert from 'assert';
-import HashGraph from './index';
+import HashGraph from './hashgraph';
 import HashThread from './hashthread';
 import * as HashThreadConst from './hashthread';
 import HashEvent from './hashevent';

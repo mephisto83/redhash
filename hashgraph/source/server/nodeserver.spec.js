@@ -55,17 +55,22 @@ describe('Node Server', function () {
 
         var _server = NodeServer.createServer(null, true);
         var _server2 = NodeServer.createServer(null, true);
+        // _server.proxy = true;
+        // _server2.proxy = true;
         var c = 0;
         var address = NodeServer.getIpAddress('127');
 
 
-        _server2.createServer(address[0].address, 1423 + c);
-        var serverSocket = _server.connectSocket(address[0].address, 1423 + c, (res) => {
-            _server2.close();
-            _server.close();
-            done();
+        var ss2 = _server2.createServer(address[0].address, 1423 + c, () => {
+            console.log('ready to connect');
+            var serverSocket = _server.connectSocket(address[0].address, 1423 + c, (res) => {
+                _server2.close();
+                _server.close();
+                done();
+            });
+            assert.ok(serverSocket);
         });
-        assert.ok(serverSocket);
+
     });
 
     it('can send messages over a socket', (done) => {
@@ -152,22 +157,23 @@ describe('Node Server', function () {
         var port = 1244;
 
         var p = new Promise((resolve) => {
-
             _server.createServer(address[0].iface.address, port, res => {
                 console.log('created server')
                 resolve();
             });
-        })
-        var p2 = new Promise((resolve) => {
-            _server2.connectSocket(address[0].iface.address, port, res => {
-                console.log('connected to socket')
-
-                resolve();
+        }).then(() => {
+            return new Promise((resolve) => {
+                _server2.connectSocket(address[0].iface.address, port, res => {
+                    console.log('connected to socket')
+                    resolve();
+                });
             });
         });
-        Promise.all([p, p2]).then(() => {
-            _server.send(address[0].iface.address, port, { sending: 'a message' });
-        })
+        Promise.all([p]).then(() => {
+            setTimeout(() => {
+                _server.send(address[0].iface.address, port, { sending: 'a message' });
+            }, 1000);
+        });
     });
 
 

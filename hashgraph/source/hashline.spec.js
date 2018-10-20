@@ -2160,7 +2160,7 @@ describe('HashLine', function () {
         Promise.resolve().then(() => {
             console.log('opening listener');
             return tms.openListener({
-                address: '127',
+                address: '192',
                 port: 6100,
                 id: person
             });
@@ -2286,7 +2286,7 @@ describe('HashLine', function () {
 
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms2.openListener({ address: '127', port: 4007, id: person2 })
+                    return tms2.openListener({ address: '192', port: 4007, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: person }).then(() => {
@@ -2300,7 +2300,7 @@ describe('HashLine', function () {
             .then(() => {
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms.openListener({ address: '127', port: 4004, id: person2 })
+                    return tms.openListener({ address: '192', port: 4004, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: self }).then(() => {
@@ -2587,7 +2587,7 @@ describe('HashLine', function () {
 
         Promise.resolve().then(() => {
             console.log('opening listener');
-            return tms.openListener({ address: '127', port: 6100, id: person })
+            return tms.openListener({ address: '192', port: 6100, id: person })
         }).then(res => {
             console.log('connecting');
             return tms2.connect({ address: res.address, port: res.port, id: self }).then(() => {
@@ -2698,7 +2698,7 @@ describe('HashLine', function () {
 
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms2.openListener({ address: '127', port: 4007, id: person2 })
+                    return tms2.openListener({ address: '192', port: 4007, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: person }).then(() => {
@@ -2712,7 +2712,7 @@ describe('HashLine', function () {
             .then(() => {
                 return Promise.resolve().then(() => {
                     console.log('opening listener');
-                    return tms.openListener({ address: '127', port: 4004, id: person2 })
+                    return tms.openListener({ address: '192', port: 4004, id: person2 })
                 }).then(res => {
                     console.log('connecting');
                     return tms3.connect({ address: res.address, port: res.port, id: self }).then(() => {
@@ -2873,16 +2873,12 @@ describe('HashLine', function () {
 
         var tms3;
         var sendMesses = function () {
-            // if (tms3) {
-            //     console.log('sending on tms3');
-            // }
             console.log('send message start ---------------------- ')
             var p = Promise.all([
                 tms.sendMessages(self),
                 tms2.sendMessages(person),
                 tms3 ? tms3.sendMessages(person2) : null
             ].filter(t => t));
-            // SocketMessageService.globalStep();
             return p.then(() => {
                 console.log('---------------------- send message complete');
                 return new Promise(resolve => {
@@ -2916,45 +2912,48 @@ describe('HashLine', function () {
         tms2.assignLine(line2);
 
         var EVENT = 'EVENT';
-
-
         Promise.resolve().then(() => {
             console.log('opening listener');
             return tms.openListener({
-                address: '127',
+                address: '192',
                 port: 6100,
                 id: person
             });
-        }).then(res => {
-            console.log('connecting');
-            return tms2.connect({
-                address: res.address,
-                port: res.port,
-                id: self
+        })
+            .then(res => {
+                console.log('connecting');
+                return tms2.connect({
+                    address: res.address,
+                    port: res.port,
+                    id: self
+                }).then(() => {
+                    return res;
+                });
+            })
+            .then((res) => {
+                return tms.isOpen({
+                    address: res.address,
+                    port: res.port,
+                    id: self
+                });
             }).then(() => {
-                return res;
+                line.sendEvent({
+                    type: MA.INITIALIZE_STATE
+                }, ET.MEMBERSHIP)
+            }).then(() => {
+            }).then(sendMesses).then(() => {
+                assert.ok(line.membershipThread.eventList.length === 1);
+                assert.ok(line2.membershipThread.eventList.length === 1);
+                console.log('closing stuff o')
+            })
+            .then(() => {
+                tms.close();
+                tms2.close();
+                if (tms3)
+                    tms3.close();
+            })
+            .then(() => {
+                done();
             });
-        }).then((res) => {
-            return tms.isOpen({
-                address: res.address,
-                port: res.port,
-                id: self
-            });
-        }).then(() => {
-            line.sendEvent({
-                type: MA.INITIALIZE_STATE
-            }, ET.MEMBERSHIP)
-        }).then(() => {
-        }).then(sendMesses).then(() => {
-            assert.ok(line.membershipThread.eventList.length === 1);
-            assert.ok(line2.membershipThread.eventList.length === 1);
-            console.log('closing stuff o')
-            tms.close();
-            tms2.close();
-            if (tms3)
-                tms3.close();
-        }).then(() => {
-            done();
-        });
     });
 });

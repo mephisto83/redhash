@@ -78,16 +78,15 @@ export default class SocketMessageService extends MessageService {
         }
         return new Promise((resolve) => {
             me.server.createServer(_address[0].iface.address, port, res => {
-
-
                 me.connectedTo(_address[0].iface.address, port, id);
                 console.log(me.connectionLib);
                 if (me.debug) {
                     console.log('connection made');
                 }
                 me.raise(CONNECTED, { address: _address[0].iface.address, port, id });
+                resolve({ address: _address[0].iface.address, port });
             });
-            resolve({ address: _address[0].iface.address, port });
+            
         });
     }
     isOpen(args) {

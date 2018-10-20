@@ -51,6 +51,22 @@ describe('Node Server', function () {
         assert.ok(addresses.id === 'me');
     });
 
+    it('can get address book', () => {
+        var controller = new RedHashController();
+        var address = NodeServer.getIpAddress('127')[0];
+        controller.addAddress({
+            id: 'me',
+            addresses: [{
+                url: address.address,
+                port: 9419
+            }]
+        });
+
+        var addresses = controller._getAddressBook();
+        assert.ok(addresses);
+        assert.ok(addresses.length === 1, 'wrong number of address');
+    })
+
     it('can create new endpoint for connecting', () => {
         var controller = new RedHashController();
         var address = NodeServer.getIpAddress('127')[0];

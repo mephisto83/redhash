@@ -239,6 +239,13 @@ export default class NodeServer {
 
         return server;
     }
+    static createProxyHttpServer(config, callback) {
+        var server = new NodeServer(null, true);
+        server.proxy = true;
+        server._createHttpServer(config, callback);
+
+        return server;
+    }
     sendConnectionRequest(res) {
         if (this.server) {
             this.send({
@@ -305,6 +312,9 @@ export default class NodeServer {
 
     _createHttpServer(config, callback) {
         var me = this;
+        if (me.proxy) {
+
+        }
         var server = http.createServer(function (req, res) {
             me._handleRequest(req, res, config);
         });
@@ -364,21 +374,28 @@ export default class NodeServer {
     connectSocket(address, port, callback, error) {
         var me = this;
         console.log(`connect socket ${address}:${port}`);
-        var serverSocket = new ServerSocket({
+        var props = {
             address,
             port,
             connect: true,
             error,
-            callback,
+            onConnect: callback,
+            // callback,
             proxy: this.proxy,
             onReceived: (message => {
                 if (me.onReceived) {
                     me.onReceived(address, port, message);
                 }
             })
-        });
+        };
+        var serverSocket = new ServerSocket(props);
         me.socketServers[`${address} ${port}`] = (serverSocket);
-
+        if (this.proxy) {
+            serverSocket.setupProxy(props).then(() => {
+                if (callback)
+                    callback();
+            })
+        }
         return serverSocket;
     }
     send(address, port, message) {
@@ -436,23 +453,41 @@ export default class NodeServer {
 
     createServer(address, port, callback) {
         var me = this;
-        var serverSocket = new ServerSocket({
+        console.log(`is proxy : ${this.proxy}`)
+        var props = {
             address,
             port,
             asServer: true,
             proxy: this.proxy,
-            startServer: true,
-            callback,
+            startServer: false,
+            //  callback,
             onReceived: (message => {
                 if (me.onReceived) {
                     me.onReceived(address, port, message);
                 }
-            })
-        });
+            }),
+            onListen: () => {
+                if (callback) {
+                    callback();
+                }
+            }
+        };
+        var serverSocket = new ServerSocket(props);
         console.log('create server')
         me.socketServers[`${address} ${port}`] = (serverSocket);
-
-
+        if (this.proxy) {
+            serverSocket.setupProxy(props).then(() => {
+                console.log('start listening');
+                serverSocket.startListen().then(() => {
+                    console.log('listening');
+                    if (callback)
+                        callback();
+                })
+            });
+        }
+        else {
+            serverSocket.startListen();
+        }
         return serverSocket;
     }
 

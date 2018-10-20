@@ -11,6 +11,8 @@ export default class ServerSocket {
             asServer,
             startServer,
             onReceived,
+            onConnect,
+            onListen,
             error,
             connect,
             port,
@@ -19,10 +21,11 @@ export default class ServerSocket {
         } = obj;
         var me = this;
         this.connected = false;
+        this.onListen = onListen;
         this.buffer = '';
         this.delimiter = '~^!@#';
         this.sendResponse = {};
-
+        this.promises = {};
         if (child) {
             return;
         }
@@ -33,13 +36,13 @@ export default class ServerSocket {
         this.onReceived = onReceived;
         if (this.proxy) {
             console.log('is using a child proxy')
-            this.childProxy = this.setupProxy(obj);
             return;
         }
+
         if (connect) {
             var socket = new net.Socket();
             this.setSocket(socket);
-            this.connect(port, address, callback, error);
+            this.connect(port, address, onConnect, error);
         }
         if (asServer) {
             console.log('build server')
@@ -49,6 +52,7 @@ export default class ServerSocket {
                 if (callback) {
                     callback();
                 }
+                console.log('on connected');
             });
             me.setServer(server);
             this.server = server;
@@ -61,58 +65,85 @@ export default class ServerSocket {
         }
     }
     setupProxy(obj) {
-        const cp = require('child_process');
+        var guid = GUID();
+        return new Promise((resolve, fail) => {
+
+            const cp = require('child_process');
+            var me = this;
+            const n = cp.fork(`${__dirname}/serverchild.js`);
+            var {
+                server,
+                address,
+                callback,
+                asServer,
+                startServer,
+                onReceived,
+                connect,
+                port,
+                proxy
+            } = obj;
+
+            n.on('message', (m) => {
+                console.log('PARENT got message:', m);
+                switch (m.func) {
+                    case 'setupChildProxy':
+                        if (m.guid === guid)
+                            resolve();
+                        break;
+                    case 'send':
+                        if (me.sendResponse && me.sendResponse[m.id]) {
+                            me.sendResponse[m.id]();
+                            delete me.sendResponse[m.id];
+                        }
+                        break;
+                    case 'onReceived':
+                        me.received(m.message);
+                        break;
+                    case 'listening':
+                        if (callback) {
+                            callback(m.func);
+                            callback = null;
+                        }
+                        break;
+                    default:
+                        if (m.guid) {
+                            if (me.promises && me.promises[m.guid]) {
+                                me.promises[m.guid].resolve();
+                                delete me.promises[m.guid];
+                            }
+                        }
+                        break;
+                }
+            });
+
+            n.send({
+                guid,
+                setupChildProxy: {
+                    ...obj,
+                    proxy: false,
+                    onReceived: null,
+                    proxyChild: true
+                }
+            });
+            this.childProxy = n;
+        });
+    }
+    startListen() {
         var me = this;
-        const n = cp.fork(`${__dirname}/serverchild.js`);
-        var {
-            server,
-            address,
-            callback,
-            asServer,
-            startServer,
-            onReceived,
-            connect,
-            port,
-            proxy
-        } = obj;
-
-        n.on('message', (m) => {
-            console.log('PARENT got message:', m);
-            switch (m.func) {
-                case 'setupChildProxy':
-                    if (callback) {
-                        callback();
-                        callback = null;
-                    }
-                    break;
-                case 'send':
-                    if (me.sendResponse && me.sendResponse[m.id]) {
-                        me.sendResponse[m.id]();
-                        delete me.sendResponse[m.id];
-                    }
-                    break;
-                case 'onReceived':
-                    me.received(m.message);
-                    break;
-                case 'listening':
-                    if (callback) {
-                        callback();
-                        callback = null;
-                    }
-                    break;
+        return new Promise((resolve, fail) => {
+            if (me.childProxy) {
+                var guid = GUID();
+                me.promises[guid] = { resolve, fail };
+                me.childProxy.send({ listen: 'listen', guid })
+            }
+            else {
+                me.listen();
+                resolve();
+                if (me.onListen) {
+                    me.onListen();
+                }
             }
         });
-
-        n.send({
-            setupChildProxy: {
-                ...obj,
-                proxy: false,
-                onReceived: null,
-                proxyChild: true
-            }
-        });
-
-        return n;
     }
     setupChildProxy(obj) {
         var {
@@ -148,7 +179,6 @@ export default class ServerSocket {
                 }
             });
             me.setServer(server);
-            this.server = server;
             if (startServer) {
                 this.listen();
             }
@@ -163,6 +193,7 @@ export default class ServerSocket {
     }
     connect(port, address, callback, error) {
         var me = this;
+        console.log('connecting ---- -')
         if (me.socket && me.socket.connect) {
 
             me.socket.connect(me.port || port, me.address || address, function () {
@@ -180,7 +211,8 @@ export default class ServerSocket {
         else {
             if (error) {
                 error();
-            } console.log('no socket to connect')
+            }
+            console.log('no socket to connect')
         }
     }
     close() {
@@ -196,7 +228,10 @@ export default class ServerSocket {
         }
 
         if (this.childProxy) {
-            this.childProxy.kill();
+            me.childProxy.send({ kill: true }, () => {
+                me.childProxy.kill();
+            });
+
         }
     }
     setServer(server) {
@@ -219,9 +254,11 @@ export default class ServerSocket {
             });
         }
         return new Promise((resolve, fail) => {
-            socket.write(message + me.delimiter, 'utf8', () => {
-                resolve();
-            });
+            if (socket) {
+                socket.write(message + me.delimiter, 'utf8', () => {
+                    resolve();
+                });
+            }
         });
     }
 
