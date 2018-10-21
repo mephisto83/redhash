@@ -3,6 +3,7 @@ var net = require('net');
 let os = require('os');
 // import serverchild from './serverchild';
 import ServerSocket from './serversocket';
+import * as Util from '../util';
 export const LISTENING = 'listening';
 export default class NodeServer {
 
@@ -13,6 +14,8 @@ export default class NodeServer {
         this.handlers = [];
         this.listeners = [];
         this.servers = [];
+        this.promises = {}
+        this.proxyServers = [];
         this.config = config;
         if (!skipCreate) {
             this.addDefaultHandler();
@@ -35,6 +38,7 @@ export default class NodeServer {
                 server.unref();
             })
         }
+
         if (this.socketServers) {
             Object.keys(this.socketServers).map(key => {
                 var server = me.socketServers[key];
@@ -43,6 +47,11 @@ export default class NodeServer {
             })
         }
 
+        if (this.proxyServers) {
+            this.proxyServers.map(p => {
+                p.proxy.send({ type: 'close' })
+            });
+        }
     }
     get serverCount() {
         return (this.servers || []).length;
@@ -309,36 +318,102 @@ export default class NodeServer {
             return t.match(headers, method, url)
         })
     }
+    addProxyListeners(proxy, config, callback) {
+        var me = this;
+        proxy.on('message', message => {
+            console.log(message);
+            switch (message.type) {
+                case 'request':
+                    var { ops } = message;
 
+                    console.log('//handle incoming messages;')
+                    var res = me._getHandler(ops);
+                    var returnValue = '';
+                    if (res && res.handler && typeof res.handler === 'function') {
+                        ops.response = {
+                            write: (ret) => {
+                                console.log(ret);
+                                returnValue = ret;
+                            }
+                        }
+                        res.handler(ops)
+                    }
+                    else {
+                        console.log(res);
+                        console.log('no handler found');
+                    }
+                    proxy.send({ type: 'reply', id: message.id, text: returnValue });
+                    break;
+                case 'reply':
+                    if (this.promises[message.id]) {
+                        this.promises[message.id]();
+                        delete this.promises[message.id];
+                    }
+                    break;
+                case 'error':
+                    console.error(message);
+                    break;
+            }
+        });
+        this.proxyPromise({ type: 'createServer', poweredBy: this.poweredBy }, proxy).then(() => {
+            this.proxyPromise({ type: 'listen', config }, proxy).then(() => {
+                console.log('parent [listen on port] ' + config.port)
+                me.raiseEvent(LISTENING, {})
+                if (callback) {
+                    callback();
+                    callback = null;
+                }
+            });
+
+        });
+    }
+    proxyPromise(message, proxy) {
+        var id = Util.GUID();
+        var resolve;
+        var promise = new Promise((res) => {
+            resolve = res;
+        })
+        this.promises[id] = resolve;
+        proxy.send({ ...message, id: id });
+        return promise;
+    }
     _createHttpServer(config, callback) {
         var me = this;
         if (me.proxy) {
-
+            const cp = require('child_process');
+            var me = this;
+            const n = cp.fork(`${__dirname}/serverhttpchild.js`);
+            me.addProxyListeners(n, config, callback);
+            me.proxyServers.push({
+                proxy: n
+            });
         }
-        var server = http.createServer(function (req, res) {
-            me._handleRequest(req, res, config);
-        });
+        else {
+            var server = http.createServer(function (req, res) {
+                me._handleRequest(req, res, config);
+            });
 
-        server.listen(config.port, config.address, (res) => {
-            console.log('listen on port ' + config.port)
-            me.raiseEvent(LISTENING, { server, res })
-            if (callback) {
-                callback();
-                callback = null;
-            }
-        });
-        server.on('error', (e) => {
-            if (e.code === 'EADDRINUSE') {
-                console.log('Address in use');
-                setTimeout(() => {
-                    server.close();
-                    // server.listen(PORT, HOST);
-                }, 1000);
-            }
-            console.log(e);
-        });
-        this.servers.push(server);
-        return server
+            server.listen(config.port, config.address, (res) => {
+                console.log('listen on port ' + config.port)
+                me.raiseEvent(LISTENING, { server, res })
+                if (callback) {
+                    callback();
+                    callback = null;
+                }
+            });
+            server.on('error', (e) => {
+                if (e.code === 'EADDRINUSE') {
+                    console.log('Address in use');
+                    setTimeout(() => {
+                        server.close();
+                        // server.listen(PORT, HOST);
+                    }, 1000);
+                }
+                console.log(e);
+            });
+            this.servers.push(server);
+            return server
+        }
     }
 
     static createServer(config, skip) {

@@ -557,4 +557,104 @@ describe('Node Server', function () {
             _server.send(address[0].iface.address, port, { sending: 'a message' });
         });
     });
+
+    it('can accept a call', (done) => {
+        var address = NodeServer.getIpAddress('127')[0];
+        var port = 8812;
+        console.log(address);
+        var server = NodeServer.createProxyHttpServer({
+            address: address.address,
+            port: port
+        }, () => {
+            console.log('listening')
+            const postData = JSON.stringify({
+                'msg': 'Hello World!'
+            });
+
+            const options = {
+                hostname: address.address,
+                port: port,
+                path: '',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
+            };
+
+            const req = http.request(options, (res) => {
+                console.log(`STATUS: ${res.statusCode}`);
+                console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    console.log(`BODY: ${chunk}`);
+                });
+                res.on('end', () => {
+                    console.log('No more data in response.');
+                    server.close();
+                    done();
+                });
+            });
+
+            req.on('error', (e) => {
+                console.error(`problem with request: ${e.message}`);
+            });
+
+            // write data to request body
+            req.write(postData);
+            req.end();
+        });
+
+        assert.ok(server);
+
+        // server.close();
+    });
+
+    
+
+    it('proxy [can handle a request controller]', (done) => {
+        var address = NodeServer.getIpAddress('127')[0];
+        var server = NodeServer.createProxyHttpServer({
+            address: address.address,
+            port: 14812
+        }, () => {
+            var controller = new RedHashController();
+            var controller2 = new RedHashController();
+            server.addController(controller);
+            var server2 = NodeServer.createProxyHttpServer({
+                address: address.address,
+                port: 14861
+            }, () => {
+                server2.addController(controller2);
+                server2.proxy = true;
+                console.log('create server 2');
+                server.proxy = true;
+                controller.sendHttp({
+                    body: {
+                        line: 'line',
+                        address: address.address,
+                        port: 12000
+                    },
+                    path: RHS.REQUEST_CONNECTION_PATH,
+                    address: address.address,
+                    method: 'POST',
+                    port: 14861
+                }).then(res => {
+                    assert.ok(res);
+                    assert.ok(res.ok);
+                    assert.ok(controller2.pendingRequests);
+                    assert.ok(controller2.pendingRequests.length === 1);
+                    assert.ok(controller.pendingRequests);
+                    assert.ok(controller.pendingRequests.length === 0);
+                    server.close();
+                    server2.close();
+                    done();
+                });
+            });
+        });
+
+
+
+
+    });
 });

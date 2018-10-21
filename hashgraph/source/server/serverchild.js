@@ -82,6 +82,7 @@ function setupChildProxy(obj) {
         if (callback) {
             callback();
         }
+        process.exit(0);
     }
 
     function send(message) {
@@ -261,7 +262,6 @@ process.on('message', (m) => {
     }
 });
 
-// process.send({ foo: 'bar' });
 
 function setupServerSocket(server) {
     server.onReceived = (m) => {

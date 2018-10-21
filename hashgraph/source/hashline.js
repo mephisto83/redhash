@@ -142,6 +142,9 @@ export default class HashLine {
         else if (me.eventThread) {
             return me.eventThread.sendEvent(new HashEvent(msg, type, this.contributors, this.name));
         }
+        else {
+            throw 'no thread';
+        }
     }
     getState(thread) {
         var newstate = this.processState(thread);
@@ -160,14 +163,6 @@ export default class HashLine {
 
                     var thread = this.getThread(state.threadType);
                     if (thread.threadId === state.thread) {
-                        // var completedEvents = HashThread.branchThread(thread, {
-                        //     contributors: [...state.proposed],
-                        //     startTime: state.time
-                        // });
-                        // this.contributors = [...state.proposed];
-                        // this.contributors.sort();
-                        // thread.eventTails = thread.extractEventTails(completedEvents, state.proposed);
-                        // this.processStateEvents(state.threadType, completedEvents);
                         this.setContributorsOnThread([...state.proposed], thread, state.threadType, state.time);
                         var membershipThread = this.getThread(MEMBERSHIP_THREAD);
                         membershipThread.eventTails = membershipThread.extractEventTails(events, state.proposed);
@@ -194,6 +189,7 @@ export default class HashLine {
         var me = this;
         var thread = me.getThread(threadId);
         var sm = this.stateMatchines[threadId];
+        console.log(threadId);
         var events = thread.getCompletedEvents() || [];
         var newstate = sm.action([...events.map(t => t.message)]);
 
