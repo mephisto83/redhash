@@ -66,7 +66,7 @@ describe.only('HashGraph', function () {
             id: 'id',
             useProxySocket: true,
             useProxyServer: true,
-            useRedHashController: true
+            useRedHashController: true,
         }).addStateMachine({
             name: 'csm',
             create: function () {
@@ -87,6 +87,120 @@ describe.only('HashGraph', function () {
                 var state = hashGraph.getState('csm');
                 console.log(state);
                 return hashGraph.stop();
+            });
+        });
+    });
+
+
+    it('can hashGraph start stream, proxy configs', () => {
+        var hashGraph = HashGraph.config({
+            id: 'id',
+            useProxySocket: true,
+            useProxyServer: true,
+            useRedHashController: true,
+            proxyServer: {
+                address: '127',
+                port: '5001'
+            }
+        }).addStateMachine({
+            name: 'csm',
+            create: function () {
+                return new CatStateMachine({
+                });
+            }
+        });
+
+        return hashGraph.start().then(() => {
+            return hashGraph.launch('csm').then(() => {
+                return hashGraph.stop();
+            });
+        });
+    });
+
+    it('can hashGraph start stream, proxy configs', () => {
+        var hashGraph = HashGraph.config({
+            id: 'id',
+            useProxySocket: true,
+            useProxyServer: true,
+            useDefaultConnectionHandler: true,
+            userDefaultJoinHandler: true,
+            useRedHashController: true,
+            socketPreferences: {
+                address: '127',
+                port: 6000
+            },
+            proxyServer: {
+                port: '5001'
+            }
+        }).addStateMachine({
+            name: 'csm',
+            create: function () {
+                return new CatStateMachine({
+                });
+            }
+        }).addPotentialParticipant({
+            address: '127.0.0.1',
+            port: '5002'
+        });
+
+        var hashGraph2 = HashGraph.config({
+            id: 'id2',
+            useProxySocket: true,
+            useProxyServer: true,
+            useDefaultConnectionHandler: true,
+            userDefaultJoinHandler: true,
+            useRedHashController: true,
+            socketPreferences: {
+                address: '127',
+                port: 8000
+            },
+            proxyServer: {
+                port: '5002'
+            }
+        }).addStateMachine({
+            name: 'csm',
+            create: function () {
+                return new CatStateMachine({
+                });
+            }
+        });
+
+        return hashGraph.start().then(() => {
+            return hashGraph.launch('csm').then(() => {
+                return hashGraph2.start().then(() => {
+                    return hashGraph2.launch('csm').then(() => {
+                        return hashGraph.connect();
+                    })
+                })
+            }).then(() => {
+                return Promise.all(Object.keys(hashGraph.openListeners).map(key => {
+
+                    return hashGraph.isOpen({
+                        address: hashGraph.openListeners[key].address,
+                        port: hashGraph.openListeners[key].port,
+                        id: key
+
+                    });
+                }));
+            })
+            .then(()=>{
+                return hashGraph2.join('id', 'csm');
+            })
+            
+            .then(() => {
+                hashGraph.sendEvent('csm', { type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
+                var events = hashGraph.getLine('csm').getEventsToSend();
+                console.log(events);
+                assert.ok(events);
+                assert.ok(events.length === 0);
+                hashGraph.getLine('csm').applyThread(EVENT_THREAD);
+                console.log(hashGraph.getLine('csm').threads)
+                var state = hashGraph.getState('csm');
+                console.log(state);
+            }).then(() => {
+                return hashGraph.stop();
+            }).then(() => {
+                return hashGraph2.stop();
             });
         });
     });

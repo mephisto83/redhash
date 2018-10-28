@@ -580,7 +580,9 @@ export default class NodeServer {
 
         return n;
     }
-
+    static getIpAddr(startsWith) {
+        return NodeServer.getIpAddress(startsWith)[0];
+    }
     static getIpAddress(startsWith) {
         var ifaces = os.networkInterfaces();
         var result = []

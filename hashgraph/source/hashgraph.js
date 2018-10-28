@@ -2,9 +2,17 @@ import HashLine from './hashline';
 import SocketMessageService from './socketmessageservice';
 import NodeServer from './server/nodeserver';
 import RedHashController from './server/redhashcontroller';
+import * as RHC from './server/redhashcontroller';
 import MembershipStateMachine from './statemachines/membershipstatemachine';
+import * as MA from './statemachines/membershipactions';
+import IConnectionInfo from './statemachines/iconnectioninfo';
 import { EVENT_THREAD } from './hashline';
 import * as Util from './util';
+import ET from './eventtypes';
+const PORT_OPENED = 'PORT_OPENED';
+const OPENING_LISTENER = 'OPENING_LISTENER';
+const JOINING_THREAD = 'JOINING_THREAD';
+const JOIN_THREAD_PROCESSING = 'JOIN_THREAD_PROCESSING';
 /*
     Hash graph will contain all lines that exist in this client.
 */
@@ -14,8 +22,15 @@ export default class HashGraph {
         this._id = _config ? _config.id || null : null;
         this.messageServiceType = null;
         this.policy = null;
+        this.config = _config;
         this.graphServer = null;
+        this.ports = {};
+        this.joiningThreads = {};
+        this.potentialParticipants = [];
+        this.openListeners = {};
+        this.messageService = null;
         this.lineMessageServiceFactory = null;
+        this.connectingPromise = Promise.resolve();
         this.statemachines = [];
     }
     createMessageService() {
@@ -39,7 +54,124 @@ export default class HashGraph {
             if (me.graphServer) {
                 return me.graphServer.close();
             }
+        }).then(() => {
+            if (me.messageService) {
+                me.messageService.close();
+            }
         })
+    }
+    connect() {
+        var me = this;
+        return Promise.resolve().then(() => {
+            var promise = Promise.resolve();
+            //This could be parallelized, later;
+            var pp = me.potentialParticipants;
+            me.potentialParticipants = [];
+            pp.map(t => {
+                promise = promise.then(() => {
+                    return me.connectToPotentialParticipant(t).catch((e) => {
+                        console.error(e);
+                        me.potentialParticipants.push(t);
+                        return Promise.reject('connecting has failed');
+                    });
+                })
+            });
+            this.connectingPromise = this.connectingPromise.then(() => {
+                return promise;
+            })
+            return this.connectingPromise;
+        });
+    }
+    connectToPotentialParticipant(config) {
+        var me = this;
+        return me.getPotentialParticipantInformation(config).then((information) => {
+            return me.createConnectionRequest(config, information).then(req => {
+                return me.graphServer.sendHttp({
+                    ...config,
+                    method: 'POST',
+                    path: RHC.CONNECTION_REQUEST,
+                    body: req
+                }).then(res => {
+                    console.log('received reply for connection request');
+                    console.log(res);
+
+                });
+            });
+        });
+    }
+    getPotentialParticipantInformation(config) {
+        var me = this;
+        return Promise.resolve().then(() => {
+            return me.graphServer.sendHttp({
+                ...config,
+                path: RHC.GET_WHO_ARE_YOU,
+                body: {},
+                method: 'POST'
+            }).catch(e => {
+                console.log(e);
+                return Promise.reject('failed to get potential participant information');
+            })
+        });
+    }
+    createConnectionRequest(potentialParticipant, informationAboutParticipant) {
+        var me = this;
+        var { socketPreferences } = me.config;
+        if (!informationAboutParticipant || !informationAboutParticipant.id) {
+            throw 'missing information about the potential participant';
+        }
+        var address;
+        if (socketPreferences && socketPreferences.address) {
+            address = socketPreferences.address;
+        }
+        else {
+            address = '127';
+        }
+
+        var port = me.getAvailablePort();
+        me.ports[port] = OPENING_LISTENER;
+        var targetAdress = null;
+        return me.messageService.openListener({
+            address,
+            port,
+            id: informationAboutParticipant.id
+        }).then((res) => {
+            targetAdress = res.address;
+            this.openListeners = { ...this.openListeners, [informationAboutParticipant.id]: res }
+            me.ports[port] = PORT_OPENED;
+        }).catch((e) => {
+            me.ports[port] = ERRORED;
+            console.error(e);
+            return Promise.reject('an error occurred while opening a listener on port ' + port);
+        }).then(() => {
+            return {
+                address: targetAdress,
+                port,
+                id: me.id
+            }
+        });
+    }
+    getAvailablePort() {
+        var me = this;
+        var { socketPreferences } = me.config;
+        var port = null;
+        if (socketPreferences && socketPreferences.port) {
+            var notdone = true;
+            port = socketPreferences.port;
+            do {
+                if (!me.ports[port]) {
+                    notdone = false;
+                }
+                else {
+                    port++;
+                }
+            } while (notdone);
+        }
+        return port;
+    }
+    addPotentialParticipant(config) {
+        this.potentialParticipants.push(config);
+
+        return this;
     }
     addStateMachine(config) {
         if (!config || !config.name) {
@@ -64,6 +196,36 @@ export default class HashGraph {
 
         _line.sendEvent(message);
     }
+    isOpen(config) {
+        if (!this.messageService) {
+            throw 'message service isnt instantiated.'
+        }
+        return this.messageService.isOpen(config);
+    }
+    join(agent, threadId) {
+        var me = this;
+        if (!me.joiningThreads[threadId]) {
+            me.joiningThreads[threadId] = JOINING_THREAD;
+            return Promise.resolve().then(() => {
+                return me.graphServer.sendHttp({
+                    ...config,
+                    method: 'POST',
+                    path: RHC.JOIN_THREAD,
+                    body: { threadId, id: me.id }
+                }).then(res => {
+                    console.log('received reply for connection request');
+                    console.log(res);
+                    if (res.processing) {
+                        me.joiningThreads[threadId] = JOIN_THREAD_PROCESSING;
+                    }
+                    else {
+                        me.joiningThreads[threadId] = false;
+                    }
+                });
+            });
+        }
+        return Promise.reject('already joining a thread');
+    }
     launch(stateMachineName, threadid) {
         threadid = threadid || stateMachineName;
         if (!stateMachineName) {
@@ -77,8 +239,6 @@ export default class HashGraph {
         let me = this;
 
         return Promise.resolve().then(() => {
-
-            // var line = new HashLine(me.id, me.id, [me.id]);
             me.createLine(stateMachineName, me.id);
             var line = me.getLine(stateMachineName);
             if (me.policy) {
@@ -114,7 +274,29 @@ export default class HashGraph {
             }
             if (_config.useRedHashController) {
                 hashGraph.controllerFactory = () => {
-                    return new RedHashController();
+                    var controller = new RedHashController(hashGraph.id);
+                    if (_config.useDefaultConnectionHandler) {
+                        controller.setHandleConnectionRequest((body) => {
+                            console.log('received connection request');
+                            console.log('default behavior is to connect to anything.');
+                            console.log(body);
+                            hashGraph.messageService.connect(body);
+                            return { accepted: true };
+                        });
+                    }
+                    if (_config.userDefaultJoinHandler) {
+                        controller.setJoinHandling((body) => {
+                            console.log('handling join request');
+                            console.log('default behavior is to find the thread, and start joining');
+                            console.log(body);
+                            if (!body || !body.threadId || !body.id) {
+                                return { processing: false }
+                            }
+                            hashGraph.defaultJoin(body)
+                            return { processing: true }
+                        })
+                    }
+                    return controller;
                 }
             }
             if (_config.useDefaultPolicy) {
@@ -150,6 +332,34 @@ export default class HashGraph {
 
         return hashGraph;
     }
+    defaultJoin(body) {
+        var me = this;
+        var line = me.getLine(body.threadId);
+        if (!line) {
+            console.log('no line found by ' + body.threadId);
+            return { processing: false, error: 'thread not found' };
+        }
+        line.sendEvent({
+            type: MA.INITIALIZE_STATE
+        }, ET.MEMBERSHIP);
+        line.sendEvent({
+            type: MA.REQUEST_CONTRIBUTOR_ADD,
+            connectionInfo: new IConnectionInfo(body.id, {
+                thread: body.threadId,
+                threadType: EVENT_THREAD
+            })
+        }, ET.MEMBERSHIP);
+        line.sendEvent({
+            type: MA.ACCEPT_CONTRIBUTOR_ADD,
+            from: me.id,
+            name: body.id
+        }, ET.MEMBERSHIP);
+        line.sendEvent({
+            type: MA.ADD_CONTRIBUTOR,
+            from: me.id,
+            name: body.id
+        }, ET.MEMBERSHIP);
+    }
     //Creates a new thread.
     createLine(name, self) {
         name = name || this.id;
@@ -164,7 +374,7 @@ export default class HashGraph {
     getState(name, thread = EVENT_THREAD) {
         var line = this.getLine(name);
 
-        return line.getState( thread);
+        return line.getState(thread);
     }
     setMessageServiceType(type) {
         this.messageServiceType = type;
