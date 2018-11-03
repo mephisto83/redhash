@@ -84,7 +84,6 @@ export default class ServerSocket {
             } = obj;
 
             n.on('message', (m) => {
-                console.log('PARENT got message:', m);
                 switch (m.func) {
                     case 'setupChildProxy':
                         if (m.guid === guid)

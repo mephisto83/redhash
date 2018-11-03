@@ -117,7 +117,7 @@ describe.only('HashGraph', function () {
         });
     });
 
-    it('can hashGraph start stream, proxy configs', () => {
+    it.only('can hashGraph start stream, proxy configs', () => {
         var hashGraph = HashGraph.config({
             id: 'id',
             useProxySocket: true,
@@ -174,7 +174,6 @@ describe.only('HashGraph', function () {
                 })
             }).then(() => {
                 return Promise.all(Object.keys(hashGraph.openListeners).map(key => {
-
                     return hashGraph.isOpen({
                         address: hashGraph.openListeners[key].address,
                         port: hashGraph.openListeners[key].port,
@@ -184,10 +183,11 @@ describe.only('HashGraph', function () {
                 }));
             })
             .then(()=>{
+                console.log('joining csm --------------------------')
                 return hashGraph2.join('id', 'csm');
             })
-            
             .then(() => {
+                console.log('joined')
                 hashGraph.sendEvent('csm', { type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
                 var events = hashGraph.getLine('csm').getEventsToSend();
                 console.log(events);

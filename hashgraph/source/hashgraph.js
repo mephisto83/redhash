@@ -26,7 +26,10 @@ export default class HashGraph {
         this.graphServer = null;
         this.ports = {};
         this.joiningThreads = {};
+        //A list of who you are trying/maybe connected to.
         this.potentialParticipants = [];
+        //A list of who you are connected to.
+        this.connections = [];
         this.openListeners = {};
         this.messageService = null;
         this.lineMessageServiceFactory = null;
@@ -39,6 +42,15 @@ export default class HashGraph {
         }
         return this;
     }
+    addConnection(config) {
+        console.log('---- add connection ----- ')
+        console.log(config);
+        this.connections.push(config);
+    }
+    getConnection(id) {
+        return this.connections.find(x => x.id === id);
+    }
+
     start() {
         var me = this;
         return Promise.resolve().then(() => {
@@ -89,12 +101,25 @@ export default class HashGraph {
                 return me.graphServer.sendHttp({
                     ...config,
                     method: 'POST',
-                    path: RHC.CONNECTION_REQUEST,
-                    body: req
-                }).then(res => {
-                    console.log('received reply for connection request');
-                    console.log(res);
+                    path: RHC.CONNECTION_ANNOUCEMENT,
+                    body: {
+                        id: me.id,
+                        ...me.getConnectionInfo()
+                    }
+                }).then(() => {
 
+                    return me.graphServer.sendHttp({
+                        ...config,
+                        method: 'POST',
+                        path: RHC.CONNECTION_REQUEST,
+                        body: req
+                    }).then(res => {
+                        console.log('received reply for connection request');
+                        console.log(`I am '${me.id}'`)
+                        console.log(res);
+                        console.log(config);
+                        me.addConnection({ ...config, ...res });
+                    });
                 });
             });
         });
@@ -207,13 +232,18 @@ export default class HashGraph {
         if (!me.joiningThreads[threadId]) {
             me.joiningThreads[threadId] = JOINING_THREAD;
             return Promise.resolve().then(() => {
+                var config = me.getConnection(agent);
+                console.log('calling ' + config.id + ' to join thread ' + threadId);
                 return me.graphServer.sendHttp({
                     ...config,
                     method: 'POST',
                     path: RHC.JOIN_THREAD,
-                    body: { threadId, id: me.id }
+                    body: {
+                        threadId,
+                        id: me.id
+                    }
                 }).then(res => {
-                    console.log('received reply for connection request');
+                    console.log('received reply for join request');
                     console.log(res);
                     if (res.processing) {
                         me.joiningThreads[threadId] = JOIN_THREAD_PROCESSING;
@@ -259,6 +289,12 @@ export default class HashGraph {
     setLinePolicy(policy) {
         this.policy = policy;
     }
+    setConnectionInfo(value) {
+        this._connectionInfo = value;
+    }
+    getConnectionInfo() {
+        return this._connectionInfo;
+    }
     static config(_config) {
         var hashGraph = new HashGraph(_config);
         hashGraph.membershipConstructor = function (contributors) {
@@ -281,8 +317,18 @@ export default class HashGraph {
                             console.log('default behavior is to connect to anything.');
                             console.log(body);
                             hashGraph.messageService.connect(body);
-                            return { accepted: true };
+                            // hashGraph.addConnection(body);
+                            return {
+                                accepted: true,
+                                id: hashGraph.id
+                            };
                         });
+                        controller.setHandleConnectionAnnouncement((connectionInfo) => {
+                            console.log('received connection info');
+                            console.log(connectionInfo);
+                            hashGraph.addConnection(connectionInfo);
+                            return { ok: true };
+                        })
                     }
                     if (_config.userDefaultJoinHandler) {
                         controller.setJoinHandling((body) => {
@@ -312,7 +358,10 @@ export default class HashGraph {
                             var _address = _config.proxyServer && _config.proxyServer.address ? _config.proxyServer.address : '127';
                             var _port = _config.proxyServer && _config.proxyServer.port ? _config.proxyServer.port : Math.floor(5000 + (Math.random() * 1000));
                             var address = NodeServer.getIpAddress(_address)[0];
-
+                            hashGraph.setConnectionInfo({
+                                address: address.address,
+                                port: _port
+                            })
                             var _server = NodeServer.createProxyHttpServer({
                                 address: address.address,
                                 port: _port

@@ -5,6 +5,7 @@ let os = require('os');
 import ServerSocket from './serversocket';
 import * as Util from '../util';
 export const LISTENING = 'listening';
+const debugging = false;
 export default class NodeServer {
 
     constructor(config, skipCreate) {
@@ -481,6 +482,7 @@ export default class NodeServer {
         return Promise.reject('no server by that address');
     }
     sendHttp(request) {
+        console.log(request);
         return new Promise((resolve, fail) => {
             const postData = JSON.stringify(request.body);
             var { port, path, method, address } = request;
@@ -571,7 +573,9 @@ export default class NodeServer {
         const n = cp.fork(`${__dirname}/serverchild.js`);
 
         n.on('message', (m) => {
-            console.log('PARENT got message:');
+            if (debugging) {
+                console.log('PARENT got message:');
+            }
             if (callback)
                 callback();
         });

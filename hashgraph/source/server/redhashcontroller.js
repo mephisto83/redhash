@@ -6,6 +6,7 @@ export const REQUEST_CONNECTION_PATH = '/req/connection';
 export const REQUEST_LINES = '/lines';
 export const REQUEST_ADDRESS_BOOK = '/address/book';
 export const CONNECTION_REQUEST = '/connection_request';
+export const CONNECTION_ANNOUCEMENT = '/connection/annoucement';
 export const JOIN_THREAD = '/join/thread';
 export const GET_WHO_ARE_YOU = '/who/are/you';
 export default class RedHashController {
@@ -22,6 +23,9 @@ export default class RedHashController {
     setHandleConnectionRequest(func) {
         this._handleConnectionRequest = func;
     }
+    setHandleConnectionAnnouncement(func) {
+        this._handleConnectionAnnouncement = func;
+    }
     setJoinHandling(func) {
         this._handleJoinThread = func;
     }
@@ -31,6 +35,7 @@ export default class RedHashController {
         this.addHandler(GET, REQUEST_ADDRESS_BOOK, this.getAddressBook.bind(this));
         this.addHandler(POST, GET_WHO_ARE_YOU, this.getWhoYouAre.bind(this));
         this.addHandler(POST, CONNECTION_REQUEST, this.connectionRequest.bind(this));
+        this.addHandler(POST, CONNECTION_ANNOUCEMENT, this.connectionAnnoucement.bind(this));
         this.addHandler(POST, JOIN_THREAD, this.joinThread.bind(this));
     }
 
@@ -59,6 +64,10 @@ export default class RedHashController {
     connectionRequest(res) {
         var { response, body } = res;
         response.write(JSON.stringify(this._connectionRequest(JSON.parse(body)), null, "\t"));
+    }
+    connectionAnnoucement(res) {
+        var { response, body } = res;
+        response.write(JSON.stringify(this._connectionAnnoucement(JSON.parse(body)), null, "\t"));
     }
     joinThread(res) {
         var { response, body } = res;
@@ -118,12 +127,19 @@ export default class RedHashController {
     }
     _connectionRequest(res) {
         if (this._handleConnectionRequest) {
-            return this._handleConnectionRequest(res)
+            return this._handleConnectionRequest(res);
         }
         console.warn('there is no connection request handling, so this connection was rejected');
         return { accepted: false };
     }
+    _connectionAnnoucement(res) {
+        if (this._handleConnectionAnnouncement) {
+            return this._handleConnectionAnnouncement(res);
+        }
+        return { ok: true }
+    }
     _joinThread(res) {
+        console.log('[join thread]');
         if (this._handleJoinThread) {
             return this._handleJoinThread(res);
         }

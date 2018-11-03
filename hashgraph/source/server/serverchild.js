@@ -2,6 +2,7 @@ let http = require('http');
 var net = require('net');
 
 var server = {};
+const debugging = false;
 function setupChildProxy(obj) {
     var {
         server,
@@ -37,7 +38,8 @@ function setupChildProxy(obj) {
     this.received = received.bind(this);
     this.close = close.bind(this);
     this.listen = listen.bind(this);
-    console.log('server child');
+    if (debugging)
+        console.log('server child');
     if (connect) {
         var socket = new net.Socket();
         this.socket = (socket);
@@ -45,9 +47,11 @@ function setupChildProxy(obj) {
         this.setSocket(this.socket);
     }
     if (asServer) {
-        console.log('build server in child process');
+        if (debugging)
+            console.log('build server in child process');
         var server = net.createServer(function (socket) {
-            console.log('---------------- create server -----------------')
+            if (debugging)
+                console.log('---------------- create server -----------------')
             me.setSocket(socket);
             if (callback) {
                 callback();
@@ -71,13 +75,15 @@ function setupChildProxy(obj) {
             server.unref();
         }
         else {
-            console.log('no server');
+            if (debugging)
+                console.log('no server');
         }
         if (socket) {
             socket.destroy();
         }
         else {
-            console.log('no socket');
+            if (debugging)
+                console.log('no socket');
         }
         if (callback) {
             callback();
@@ -93,24 +99,29 @@ function setupChildProxy(obj) {
         }
 
         return new Promise((resolve, fail) => {
-            console.log('sending message from server child');
+            if (debugging)
+                console.log('sending message from server child');
             socket.write(message + me.delimiter, 'utf8', () => {
                 resolve();
-                console.log('sent message from server child');
+                if (debugging)
+                    console.log('sent message from server child');
             });
         });
     }
     function received(messages) {
-        console.log('--received--')
+        if (debugging)
+            console.log('--received--')
         if (this.onReceived) {
             this.onReceived(messages);
         }
         else {
-            console.log('received no handler')
+            if (debugging)
+                console.log('received no handler')
         }
     }
     function data(d) {
-        console.log('# data #')
+        if (debugging)
+            console.log('# data #')
         this.buffer = this.buffer + (d);
         var chunks = this.buffer.split(this.delimiter);
         if (chunks.length > 1) {
@@ -167,8 +178,8 @@ function timeout() {
 }
 
 function ready() {
-
-    console.log('child is ready');
+    if (debugging)
+        console.log('child is ready');
 }
 
 function error(r) {
@@ -182,14 +193,15 @@ function end() {
 }
 
 function drain() {
-    console.log('child is drained');
+    if (debugging)
+        console.log('child is drained');
 }
 
 function closed(hadError) {
     this.closed = true;
     this.closedWithError = hadError;
-
-    console.log('child is closed');
+    if (debugging)
+        console.log('child is closed');
 }
 
 
@@ -220,7 +232,8 @@ function _connect(port, address, callback) {
 }
 
 process.on('message', (m) => {
-    console.log('CHILD got message:', m);
+    if (debugging)
+        console.log('CHILD got message:', m);
     if (m) {
         Object.keys(m).filter(t => t !== 'id').map(t => {
             switch (t) {
@@ -231,7 +244,8 @@ process.on('message', (m) => {
                             process.send({ onSocketCreated: true })
                         },
                         onConnect: () => {
-                            console.log('child proxy setup')
+                            if (debugging)
+                                console.log('child proxy setup')
                             process.send({ onConnect: true })
                         }
                     });
