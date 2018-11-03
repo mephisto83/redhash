@@ -2599,97 +2599,95 @@ describe('HashLine', function () {
             line.sendEvent({
                 type: MA.INITIALIZE_STATE
             }, ET.MEMBERSHIP)
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.REQUEST_CONTRIBUTOR_ADD,
+                connectionInfo: new IConnectionInfo(person2, {
+                    thread: threadid,
+                    threadType: EVENT_THREAD
+                })
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+            console.log(line.threads[MEMBERSHIP_THREAD].thread.eventList[0])
+        }).then(sendMesses).then(() => {
+            line2.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: person,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.ADD_CONTRIBUTOR,
+                from: self,
+                name: person2
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 1' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 3' });
+            line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 4' });
+            line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' });
+        }).then(sendMesses).then(() => {
+            line.sendEvent({
+                type: MA.UPDATE_THREAD,
+                from: self,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var { state, time } = line.processState(EVENT_THREAD);
+            line.sendEvent({
+                type: MA.THREAD_CUT_OFF,
+                from: self,
+                time: 2000,
+                storedState: {
+                    EVENT_THREAD: {
+                        state,
+                        time
+                    }
+                },
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var range = line.getCutRanges(EVENT_THREAD);
+            line.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: self,
+                time: 2000,
+                range,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+        }).then(sendMesses).then(() => {
+            var range = line2.getCutRanges(EVENT_THREAD);
+            line2.sendEvent({
+                type: MA.THREAD_CUT_APPROVAL,
+                from: person,
+                time: 2000,
+                range,
+                thread: threadid
+            }, ET.MEMBERSHIP);
+
+        }).then(sendMesses).then(() => {
+            var newstate = line.processState(MEMBERSHIP_THREAD);
+            var newstate2 = line2.processState(MEMBERSHIP_THREAD);
+            assert.ok(newstate);
+            assert.ok(newstate2);
+            console.log(newstate.state);
+            console.log(newstate2.state);
+            assert.ok(newstate2.state.state === MA.THREAD_CUT_APPROVED, `${newstate2.state.state} !== ${MA.THREAD_CUT_APPROVAL}`);
+            assert.ok(newstate.state.state === MA.THREAD_CUT_APPROVED);
+
+            //Next step
+            //Setup the new line and pass the state.
+            line3 = new HashLine(lineName, person2, [...contributors, person2]);
+            line3.initialize(threadid);
+            line3.assignMachine(msmConstructor);
+            line3.assignMachine(csm, EVENT_THREAD);
         })
-            .then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.REQUEST_CONTRIBUTOR_ADD,
-                    connectionInfo: new IConnectionInfo(person2, {
-                        thread: threadid,
-                        threadType: EVENT_THREAD
-                    })
-                }, ET.MEMBERSHIP);
-
-            }).then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.ACCEPT_CONTRIBUTOR_ADD,
-                    from: self,
-                    name: person2
-                }, ET.MEMBERSHIP);
-                console.log(line.threads[MEMBERSHIP_THREAD].thread.eventList[0])
-            }).then(sendMesses).then(() => {
-                line2.sendEvent({
-                    type: MA.ACCEPT_CONTRIBUTOR_ADD,
-                    from: person,
-                    name: person2
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.ADD_CONTRIBUTOR,
-                    from: self,
-                    name: person2
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 1' });
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 3' });
-                line.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 4' });
-                line2.sendEvent({ type: CSM.UPDATE, name: EVENT, value: 'an event 5' });
-            }).then(sendMesses).then(() => {
-                line.sendEvent({
-                    type: MA.UPDATE_THREAD,
-                    from: self,
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                var { state, time } = line.processState(EVENT_THREAD);
-                line.sendEvent({
-                    type: MA.THREAD_CUT_OFF,
-                    from: self,
-                    time: 2000,
-                    storedState: {
-                        EVENT_THREAD: {
-                            state,
-                            time
-                        }
-                    },
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                var range = line.getCutRanges(EVENT_THREAD);
-                line.sendEvent({
-                    type: MA.THREAD_CUT_APPROVAL,
-                    from: self,
-                    time: 2000,
-                    range,
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-            }).then(sendMesses).then(() => {
-                var range = line2.getCutRanges(EVENT_THREAD);
-                line2.sendEvent({
-                    type: MA.THREAD_CUT_APPROVAL,
-                    from: person,
-                    time: 2000,
-                    range,
-                    thread: threadid
-                }, ET.MEMBERSHIP);
-
-            }).then(sendMesses).then(() => {
-                var newstate = line.processState(MEMBERSHIP_THREAD);
-                var newstate2 = line2.processState(MEMBERSHIP_THREAD);
-                assert.ok(newstate);
-                assert.ok(newstate2);
-                console.log(newstate.state);
-                console.log(newstate2.state);
-                assert.ok(newstate2.state.state === MA.THREAD_CUT_APPROVED, `${newstate2.state.state} !== ${MA.THREAD_CUT_APPROVAL}`);
-                assert.ok(newstate.state.state === MA.THREAD_CUT_APPROVED);
-
-                //Next step
-                //Setup the new line and pass the state.
-                line3 = new HashLine(lineName, person2, [...contributors, person2]);
-                line3.initialize(threadid);
-                line3.assignMachine(msmConstructor);
-                line3.assignMachine(csm, EVENT_THREAD);
-            })
             .then(sendMesses)
             .then(() => {
 
