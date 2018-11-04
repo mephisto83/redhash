@@ -33,6 +33,7 @@ export default class HashGraph {
         this.connections = [];
         this.openListeners = {};
         this.messageService = null;
+        this.machineRunner = null;
         this.lineMessageServiceFactory = null;
         this.connectingPromise = Promise.resolve();
         this.statemachines = [];
@@ -299,9 +300,11 @@ export default class HashGraph {
     static config(_config) {
         var hashGraph = new HashGraph(_config);
         hashGraph.membershipConstructor = function (contributors) {
-            return new MembershipStateMachine({
+            var msm = new MembershipStateMachine({
                 contributors
             });
+            hashGraph.machineRunner = MachineRunner.machine(msm)
+            return msm;
         }
         if (_config) {
             if (_config.useProxyServer) {
@@ -392,8 +395,10 @@ export default class HashGraph {
                 error: 'thread not found'
             };
         }
-
-        MachineRunner.machine(line.getStateMachine(ET.MEMBERSHIP)).when((a) => {
+        if (!me.machineRunner) {
+            throw 'no machine runner found';
+        }
+        me.machineRunner.when((a) => {
             return a && [MA.INITIALIZE_STATE, null, undefined].indexOf(a.state) !== -1;
         }, () => {
             line.sendEvent({
