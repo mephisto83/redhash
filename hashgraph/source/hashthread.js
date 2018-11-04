@@ -1,6 +1,7 @@
 import * as Util from './util';
 import HashEvent from './hashevent';
 import * as HE from './hashevent';
+import { UPDATE_THREAD } from './statemachines/membershipactions';
 export const _documentation = {
     id: {
         type: 'string',
@@ -182,7 +183,7 @@ export default class HashThread {
     }
     handleUpdateEvent(evt) {
         var me = this;
-        var { update, original } = evt;
+        var { update, original, eventIndex } = evt;
 
         if (original && update) {
             HashEvent.combine(update, original);
@@ -191,6 +192,10 @@ export default class HashThread {
                 original.applyHistory(update.history);
                 this.eventHeads[original.eventSource] = Math.max(this.eventHeads[original.eventSource] || 0, original.eventIndex);
                 this.sortEvents();
+                var newIndex = this.eventList.findIndex(x => x.id === original.id);
+                if (eventIndex !== newIndex) {
+                    this.raiseEvent(THREAD_UPDATE, this);
+                }
             }
 
         }
@@ -204,16 +209,7 @@ export default class HashThread {
             this.handleUpdateEvent({
                 update: updateEvent,
                 original: evt
-            })
-            // if (updateEvent && updateEvent.id === evt.id) {
-            //     evt.applyHistory(updateEvent.history);
-            // }
-            // else {
-            //     throw 'not applying history';
-            // }
-
-            // this.eventHeads[evt.eventSource] = Math.max(this.eventHeads[evt.eventSource], evt.eventIndex);
-            // this.sortEvents();
+            });
         }
         else {
             throw 'not a hash event'
@@ -227,10 +223,8 @@ export default class HashThread {
     }
     handleReceivedEvent(args) {
         if (args) {
-
-            var { event, from } = args;
+            var { event } = args;
             if (event instanceof HashEvent) {
-
                 this.raiseEvent(EVENTUPDATED, args);
 
                 this.eventHeads[event.eventSource] = Math.max(this.eventHeads[event.eventSource] || 0, event.eventIndex);
@@ -442,6 +436,7 @@ export default class HashThread {
             this.eventList.push(newevent);
             this.sortEvents();
             this.raiseEvent(SENDEVENT, newevent);
+            this.raiseEvent(THREAD_UPDATE, this);
             return newevent;
         }
     }
@@ -460,7 +455,9 @@ export default class HashThread {
         var hashEvent = HashEvent.create(_hashEvent);
         if (hashEvent) {
 
-            var evnt = this.eventList.find(t => t.id === hashEvent.id);
+
+            var evntIndex = this.eventList.findIndex(t => t.id === hashEvent.id);
+            var evnt = evntIndex !== -1 ? this.eventList[evntIndex] : null;
             if (!evnt) {
 
                 var newevent = hashEvent.stamp(this.self);
@@ -474,7 +471,6 @@ export default class HashThread {
                         });
                         break;
                     default:
-
                         this.raiseEvent(RECEIVEEVENT, {
                             event: newevent
                         });
@@ -487,7 +483,8 @@ export default class HashThread {
                     default:
                         this.raiseEvent(UPDATEEVENT, {
                             update: hashEvent,
-                            original: evnt
+                            original: evnt,
+                            eventIndex: evntIndex
                         });
                         break;
                 }
@@ -540,6 +537,7 @@ export default class HashThread {
     }
 }
 
+export const THREAD_UPDATE = 'THREAD_UPDATE';
 export const SENDEVENT = 'SENDEVENT';
 export const SYSEVENT = 'SYSEVENT';
 export const RECEIVEEVENT = 'RECEIVEEVENT';

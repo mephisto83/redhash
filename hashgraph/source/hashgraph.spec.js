@@ -117,7 +117,7 @@ describe.only('HashGraph', function () {
         });
     });
 
-    it.only('can hashGraph start stream, proxy configs', () => {
+    it('can hashGraph start stream, proxy configs', () => {
         var hashGraph = HashGraph.config({
             id: 'id',
             useProxySocket: true,

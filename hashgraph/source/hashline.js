@@ -146,6 +146,9 @@ export default class HashLine {
             throw 'no thread';
         }
     }
+    getStateMachine(name) {
+        return this.stateMatchines[name] || null;
+    }
     getState(thread) {
         var newstate = this.processState(thread);
         return newstate.state;

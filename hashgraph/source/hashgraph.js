@@ -7,6 +7,7 @@ import MembershipStateMachine from './statemachines/membershipstatemachine';
 import * as MA from './statemachines/membershipactions';
 import IConnectionInfo from './statemachines/iconnectioninfo';
 import { EVENT_THREAD } from './hashline';
+import MachineRunner from './machinerunner';
 import * as Util from './util';
 import ET from './eventtypes';
 const PORT_OPENED = 'PORT_OPENED';
@@ -386,29 +387,42 @@ export default class HashGraph {
         var line = me.getLine(body.threadId);
         if (!line) {
             console.log('no line found by ' + body.threadId);
-            return { processing: false, error: 'thread not found' };
+            return {
+                processing: false,
+                error: 'thread not found'
+            };
         }
-        line.sendEvent({
-            type: MA.INITIALIZE_STATE
-        }, ET.MEMBERSHIP);
-        line.sendEvent({
-            type: MA.REQUEST_CONTRIBUTOR_ADD,
-            connectionInfo: new IConnectionInfo(body.id, {
-                thread: body.threadId,
-                threadType: EVENT_THREAD
-            })
-        }, ET.MEMBERSHIP);
-        line.sendEvent({
-            type: MA.ACCEPT_CONTRIBUTOR_ADD,
-            from: me.id,
-            name: body.id
-        }, ET.MEMBERSHIP);
-        line.sendEvent({
-            type: MA.ADD_CONTRIBUTOR,
-            from: me.id,
-            name: body.id
-        }, ET.MEMBERSHIP);
+
+        MachineRunner.machine(line.getStateMachine(ET.MEMBERSHIP)).when((a) => {
+            return a && [MA.INITIALIZE_STATE, null, undefined].indexOf(a.state) !== -1;
+        }, () => {
+            line.sendEvent({
+                type: MA.INITIALIZE_STATE
+            }, ET.MEMBERSHIP);
+            line.sendEvent({
+                type: MA.REQUEST_CONTRIBUTOR_ADD,
+                connectionInfo: new IConnectionInfo(body.id, {
+                    thread: body.threadId,
+                    threadType: EVENT_THREAD
+                })
+            }, ET.MEMBERSHIP);
+            line.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: me.id,
+                name: body.id
+            }, ET.MEMBERSHIP);
+        }).when((a) => {
+            return a.state === MA.ACCEPT_CONTRIBUTOR_ADD
+        }, () => {
+            line.sendEvent({
+                type: MA.ADD_CONTRIBUTOR,
+                from: me.id,
+                name: body.id
+            }, ET.MEMBERSHIP);
+        })
+
     }
+
     //Creates a new thread.
     createLine(name, self) {
         name = name || this.id;

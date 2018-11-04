@@ -1,7 +1,9 @@
 import * as MA from './membershipactions';
+import * as Util from '../util';
 export default class MembershipStateMachine {
     constructor(initialState) {
-        this.initialState = initialState || {}
+        this.initialState = initialState || {};
+        this.applyCallbacks = [];
         this.state = {
             contributorElection: [],
             ...this.initialState
@@ -9,6 +11,18 @@ export default class MembershipStateMachine {
     }
     applyState(state) {
         this.state = { ...state };
+        this.raiseApply();
+    }
+    raiseApply() {
+        this.applyCallbacks.map(t => t.func && t.func());
+    }
+    onApply(func) {
+        var id = Util.GUID();
+        this.applyCallbacks.push({ func, id });
+        return id;
+    }
+    removeApply(id) {
+        this.applyCallbacks = [...this.applyCallbacks.filter(t => t.id !== id)];
     }
     adjustContributors(state) {
         if (!state) {
