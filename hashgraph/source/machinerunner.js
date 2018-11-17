@@ -13,14 +13,24 @@ export default class MachineRunner {
 
         return result;
     }
+    kickOff() {
+        this.doKickOff = true;
+        
+        console.log('kick off');
+        return this;
+    }
     when(test, action) {
         var me = this;
         if (!test) {
             throw 'test is required';
         }
+        console.log('machine runner when ----- ')
         this.promise = this.promise.then(() => {
             return new Promise((resolve, fail) => {
+                console.log('adding on apply');
+               
                 me.applyId = me.machine.onApply(() => {
+                    console.log('applied')
                     if (test(me.machine)) {
                         Promise.resolve().then(() => {
                             return action();
@@ -32,6 +42,12 @@ export default class MachineRunner {
                         });
                     }
                 });
+                if (me.doKickOff) {
+                    if (me.machine) {
+                        me.machine.raiseApply();
+                    }
+                }
+                console.log(me.applyId);
             });
         });
 

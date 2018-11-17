@@ -22,6 +22,7 @@ export default class HashGraph {
         this.lines = [];
         this._id = _config ? _config.id || null : null;
         this.messageServiceType = null;
+        this.joinPromise = {};
         this.policy = null;
         this.config = _config;
         this.graphServer = null;
@@ -249,6 +250,7 @@ export default class HashGraph {
                     console.log(res);
                     if (res.processing) {
                         me.joiningThreads[threadId] = JOIN_THREAD_PROCESSING;
+                        return me._waitForJoin(agent, threadId);
                     }
                     else {
                         me.joiningThreads[threadId] = false;
@@ -257,6 +259,14 @@ export default class HashGraph {
             });
         }
         return Promise.reject('already joining a thread');
+    }
+    _waitForJoin(agent, threadId) {
+        var me = this;
+        return new Promise((resolve, fail) => {
+            me.joinPromise[`${agent}-${threadId}`] = () => {
+                resolve();
+            }
+        })
     }
     launch(stateMachineName, threadid) {
         threadid = threadid || stateMachineName;
@@ -387,6 +397,7 @@ export default class HashGraph {
     }
     defaultJoin(body) {
         var me = this;
+        console.log('default join');
         var line = me.getLine(body.threadId);
         if (!line) {
             console.log('no line found by ' + body.threadId);
@@ -399,8 +410,12 @@ export default class HashGraph {
             throw 'no machine runner found';
         }
         me.machineRunner.when((a) => {
-            return a && [MA.INITIALIZE_STATE, null, undefined].indexOf(a.state) !== -1;
+            console.log('check when');
+            console.log(a);
+            var { state } = a.state;
+            return a && [MA.INITIALIZE_STATE, null, undefined].indexOf(state) !== -1;
         }, () => {
+            console.log('default joining a new agent to thread');
             line.sendEvent({
                 type: MA.INITIALIZE_STATE
             }, ET.MEMBERSHIP);
@@ -417,14 +432,16 @@ export default class HashGraph {
                 name: body.id
             }, ET.MEMBERSHIP);
         }).when((a) => {
-            return a.state === MA.ACCEPT_CONTRIBUTOR_ADD
+            console.log('check state');
+            console.log(a.state);
+            return a.state.state === MA.ACCEPT_CONTRIBUTOR_ADD
         }, () => {
             line.sendEvent({
                 type: MA.ADD_CONTRIBUTOR,
                 from: me.id,
                 name: body.id
             }, ET.MEMBERSHIP);
-        })
+        }).kickOff();
 
     }
 
