@@ -9,6 +9,7 @@ import IConnectionInfo from './statemachines/iconnectioninfo';
 import { EVENT_THREAD } from './hashline';
 import MachineRunner from './machinerunner';
 import * as Util from './util';
+import * as HThread from './hashthread';
 import ET from './eventtypes';
 const PORT_OPENED = 'PORT_OPENED';
 const OPENING_LISTENER = 'OPENING_LISTENER';
@@ -291,6 +292,10 @@ export default class HashGraph {
             line.assignMachine(() => {
                 return me.membershipConstructor([me.id]);
             });
+            line.listen(HThread.SENDEVENT, () => {
+                console.log('sending messages');
+                me.messageService.sendMessages(line.name);
+            });
             line.assignMachine(machineConfig.create, EVENT_THREAD);
             me.messageService = me.messageService || me.lineMessageServiceFactory(me.id);
             me.messageService.assignLine(line);
@@ -413,12 +418,14 @@ export default class HashGraph {
             console.log('check when');
             console.log(a);
             var { state } = a.state;
+            console.log(`state: ${state}`);
             return a && [MA.INITIALIZE_STATE, null, undefined].indexOf(state) !== -1;
         }, () => {
             console.log('default joining a new agent to thread');
             line.sendEvent({
                 type: MA.INITIALIZE_STATE
             }, ET.MEMBERSHIP);
+            console.log('request contributor add');
             line.sendEvent({
                 type: MA.REQUEST_CONTRIBUTOR_ADD,
                 connectionInfo: new IConnectionInfo(body.id, {
@@ -426,6 +433,7 @@ export default class HashGraph {
                     threadType: EVENT_THREAD
                 })
             }, ET.MEMBERSHIP);
+            console.log('accept contributor add');
             line.sendEvent({
                 type: MA.ACCEPT_CONTRIBUTOR_ADD,
                 from: me.id,
@@ -434,13 +442,63 @@ export default class HashGraph {
         }).when((a) => {
             console.log('check state');
             console.log(a.state);
-            return a.state.state === MA.ACCEPT_CONTRIBUTOR_ADD
+            let { state } = a.state;
+            console.log(`state: ${state}`);
+            return state === MA.ACCEPT_CONTRIBUTOR_ADD
         }, () => {
             line.sendEvent({
                 type: MA.ADD_CONTRIBUTOR,
                 from: me.id,
                 name: body.id
             }, ET.MEMBERSHIP);
+        }).when((a) => {
+            console.log('check state');
+            console.log(a.state);
+            let { state } = a.state;
+            console.log(`state: ${state}`);
+            return state === MA.ADD_CONTRIBUTOR
+        }, () => {
+            line.sendEvent({
+                type: MA.ACCEPT_CONTRIBUTOR_ADD,
+                from: me.id,
+                name: body.id
+            }, ET.MEMBERSHIP);
+
+            // var range = line.getCutRanges(MEMBERSHIP_THREAD);
+            // line.sendEvent({
+            //     type: MA.THREAD_CUT_APPROVAL,
+            //     from: me.id,
+            //     range,
+            //     thread: body.threadId,
+            // }, ET.MEMBERSHIP);
+        }).when((a) => {
+            console.log('check state');
+            console.log(a.state);
+            let { state } = a.state;
+            console.log(`state: ${state}`);
+            return state === MA.ACCEPT_CONTRIBUTOR_ADD
+
+        }, () => {
+            line.sendEvent({
+                type: MA.ADD_CONTRIBUTOR,
+                from: me.id,
+                name: body.id
+            }, ET.MEMBERSHIP);
+
+        }).when((a) => {
+            console.log('check state add contributor');
+            console.log(a.state);
+            let { state } = a.state;
+            console.log(`state: ${state}`);
+            return state === MA.ADD_CONTRIBUTOR
+
+        }, () => {
+            line.sendEvent({
+                type: MA.UPDATE_THREAD,
+                from: me.id,
+                name: body.id
+            }, ET.MEMBERSHIP);
+
         }).kickOff();
 
     }

@@ -439,6 +439,9 @@ export default class HashThread {
             this.raiseEvent(THREAD_UPDATE, this);
             return newevent;
         }
+        else{ 
+            throw 'not a hash event'
+        }
     }
     sendEventId(evt, person) {
     }

@@ -110,8 +110,11 @@ describe.only('HashGraph', function () {
             }
         });
 
+        console.log('start ------------------');
         return hashGraph.start().then(() => {
+            console.log('launch ------------------');
             return hashGraph.launch('csm').then(() => {
+                console.log('stop ------------------');
                 return hashGraph.stop();
             });
         });
@@ -182,26 +185,28 @@ describe.only('HashGraph', function () {
                     });
                 }));
             })
-            .then(()=>{
-                console.log('joining csm --------------------------')
-                return hashGraph2.join('id', 'csm');
-            })
-            .then(() => {
-                console.log('joined')
-                hashGraph.sendEvent('csm', { type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
-                var events = hashGraph.getLine('csm').getEventsToSend();
-                console.log(events);
-                assert.ok(events);
-                assert.ok(events.length === 0);
-                hashGraph.getLine('csm').applyThread(EVENT_THREAD);
-                console.log(hashGraph.getLine('csm').threads)
-                var state = hashGraph.getState('csm');
-                console.log(state);
-            }).then(() => {
-                return hashGraph.stop();
-            }).then(() => {
-                return hashGraph2.stop();
-            });
+                .then(() => {
+                    console.log('joining csm --------------------------')
+                    return hashGraph2.join('id', 'csm');
+                })
+                .then(() => {
+                    console.log('joined')
+                    hashGraph.sendEvent('csm', { type: CSM.UPDATE, name: EVENT, value: 'an event 2' });
+                    var events = hashGraph.getLine('csm').getEventsToSend();
+                    console.log(events);
+                    assert.ok(events);
+                    assert.ok(events.length === 0);
+                    hashGraph.getLine('csm').applyThread(EVENT_THREAD);
+                    console.log(hashGraph.getLine('csm').threads)
+                    var state = hashGraph.getState('csm');
+                    console.log(state);
+                }).then(() => {
+                    console.log('$$$$$$$$$$$$$$$$$$$$$ stopping')
+                    return hashGraph.stop();
+                }).then(() => {
+                    console.log('$$$$$$$$$$$$$$$$$$$$$ stopping 2')
+                    return hashGraph2.stop();
+                });
         });
     });
 });

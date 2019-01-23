@@ -98,6 +98,11 @@ export default class HashLine {
         this.assignState({ [thread]: { state } }, thread);
         this.getThread(thread).applyThread();
     }
+    applyAllThreads() {
+        Object.keys(this.threads).map(key => {
+            this.applyThread(key);
+        });
+    }
     processStateEvents(threadId, events) {
         if (!threadId) {
             throw 'no thread id ';
@@ -324,6 +329,7 @@ export default class HashLine {
         };
         this.threadListeners[name] = [];
         var p = newthread.listen(HThread.SENDEVENT, (event) => {
+            console.log('raise send event');
             me.raiseEvent(HThread.SENDEVENT, event);
         });
         this.threadListeners[name].push(p);

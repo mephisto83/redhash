@@ -86,7 +86,7 @@ export default class SocketMessageService extends MessageService {
                 me.raise(CONNECTED, { address: _address[0].iface.address, port, id });
                 resolve({ address: _address[0].iface.address, port });
             });
-            
+
         });
     }
     isOpen(args) {
@@ -191,14 +191,21 @@ export default class SocketMessageService extends MessageService {
         Object.keys(me.lines).map(t => {
             var line = me.lines[t];
             messages = line.getMessageToSend() || [];
-            (messages.map(t => {
-                (line.getNextPossibleDestinationsFor(t).map(dests => {
+            if (!messages.length) {
+                console.log('no messages to send for line ' + line.name);
+            }
+            (messages.map(message => {
+                (line.getNextPossibleDestinationsFor(message).map(dests => {
                     ([dests].map(to => {
-                        promises.push(me.send(t, to, from).then(res => {
+                        console.log('sending...')
+                        promises.push(me.send(message, to, from).then(res => {
                         }));
                     }));
                 }));
             }));
+            promises.push(Promise.resolve().then(() => {
+                return line.applyAllThreads();
+            }))
         });
         return Promise.all(promises);
     }
